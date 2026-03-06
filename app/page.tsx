@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import ProductCard from "@/components/ProductCard"
 
 export default function HomePage() {
 
@@ -64,78 +65,25 @@ export default function HomePage() {
 
       </section>
 
-
       {/* FEATURED PRODUCTS */}
       <section className="max-w-7xl mx-auto px-8 py-24">
 
-        <h2 className="text-3xl font-bold mb-12">
-          Featured Products
-        </h2>
+        <h2 className="text-3xl font-bold mb-12">Featured Products</h2>
 
         <div className="grid md:grid-cols-3 gap-10">
-
           {products.map((product) => (
-
             <ProductCard
               key={product._id}
               id={product._id}
               name={product.name}
               price={product.price}
-              image={product.image}
+              image={product.images?.[0] ?? product.image ?? ""}
             />
-
           ))}
-
         </div>
 
       </section>
 
     </main>
-  )
-}
-
-
-
-function ProductCard({
-  id,
-  name,
-  price,
-  image
-}: {
-  id: string
-  name: string
-  price: number
-  image: string
-}) {
-
-  const safeImage = image && image !== "" ? image : "/products/placeholder.jpg"
-
-  return (
-    <Link
-      href={`/product/${id}`}
-      className="group block"
-    >
-
-      <div className="overflow-hidden mb-4">
-
-        <Image
-          src={safeImage}
-          alt={name}
-          width={400}
-          height={500}
-          className="object-cover transition-transform duration-500 group-hover:scale-110"
-        />
-
-      </div>
-
-      <h3 className="font-semibold">
-        {name}
-      </h3>
-
-      <p className="text-neutral-400">
-        ${price}
-      </p>
-
-    </Link>
   )
 }

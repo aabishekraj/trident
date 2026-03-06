@@ -22,8 +22,8 @@ export async function POST(req: Request) {
       quantity: item.quantity
     })),
 
-    success_url: "http://localhost:3000/success",
-    cancel_url: "http://localhost:3000/checkout"
+    success_url: `${process.env.NEXTAUTH_URL}/success`,
+    cancel_url: `${process.env.NEXTAUTH_URL}/checkout`
   })
 
   return NextResponse.json({

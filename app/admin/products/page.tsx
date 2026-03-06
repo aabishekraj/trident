@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react"
 
 export default function AdminProducts() {
+
   const [products, setProducts] = useState<any[]>([])
   const [name, setName] = useState("")
   const [price, setPrice] = useState("")
   const [image, setImage] = useState("")
   const [file, setFile] = useState<File | null>(null)
-  
+
   const fetchProducts = async () => {
     const res = await fetch("/api/products")
     const data = await res.json()
@@ -20,55 +21,47 @@ export default function AdminProducts() {
   }, [])
 
   const addProduct = async () => {
-    let imagePath = ""
+    let imagePath = image
 
-  if(file){
+    if (file) {
+      const formData = new FormData()
+      formData.append("file", file)
 
-    const formData = new FormData()
-    formData.append("file", file)
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
 
-    const uploadRes = await fetch("/api/upload",{
-      method:"POST",
-      body:formData
-    })
+      const uploadData = await uploadRes.json()
+      imagePath = uploadData.path
+    }
 
-    const uploadData = await uploadRes.json()
-
-    imagePath = uploadData.path
-  }
     await fetch("/api/products", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name,
-        price,
-        image,
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, price, image: imagePath }),
     })
 
     setName("")
     setPrice("")
     setImage("")
+    setFile(null)
     fetchProducts()
   }
 
   const deleteProduct = async (id: string) => {
-    await fetch(`/api/products/${id}`, {
-      method: "DELETE",
-    })
-
+    await fetch(`/api/products/${id}`, { method: "DELETE" })
     fetchProducts()
   }
 
   return (
     <div className="p-10">
+
       <h1 className="text-3xl font-bold mb-6">Admin Products</h1>
 
       {/* Add Product */}
-
       <div className="mb-10 space-y-2">
+
         <input
           className="border p-2 w-full"
           placeholder="Product Name"
@@ -91,9 +84,9 @@ export default function AdminProducts() {
         />
 
         <input
-  type="file"
-  onChange={(e)=>setFile(e.target.files?.[0] || null)}
-/>
+          type="file"
+          onChange={(e) => setFile(e.target.files?.[0] || null)}
+        />
 
         <button
           onClick={addProduct}
@@ -101,10 +94,10 @@ export default function AdminProducts() {
         >
           Add Product
         </button>
+
       </div>
 
       {/* Product List */}
-
       <table className="w-full border">
         <thead>
           <tr className="border">
@@ -133,6 +126,7 @@ export default function AdminProducts() {
           ))}
         </tbody>
       </table>
+
     </div>
   )
 }
