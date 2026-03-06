@@ -1,17 +1,41 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { connectDB } from "@/lib/mongodb"
 import Product from "@/models/Product"
 
-export async function DELETE(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+type P = { params: Promise<{ id: string }> }
 
-  await connectDB()
+export async function GET(_: NextRequest, { params }: P) {
+  try {
+    await connectDB()
+    const { id } = await params
+    const p = await Product.findById(id).lean()
+    if (!p) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 })
+    return NextResponse.json({ success: true, data: p })
+  } catch (e) {
+    return NextResponse.json({ success: false, error: String(e) }, { status: 500 })
+  }
+}
 
-  const { id } = await params
+export async function PUT(req: NextRequest, { params }: P) {
+  try {
+    await connectDB()
+    const { id } = await params
+    const body = await req.json()
+    const p = await Product.findByIdAndUpdate(id, { $set: body }, { new: true, runValidators: true }).lean()
+    if (!p) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 })
+    return NextResponse.json({ success: true, data: p })
+  } catch (e) {
+    return NextResponse.json({ success: false, error: String(e) }, { status: 500 })
+  }
+}
 
-  await Product.findByIdAndDelete(id)
-
-  return NextResponse.json({ success: true })
+export async function DELETE(_: NextRequest, { params }: P) {
+  try {
+    await connectDB()
+    const { id } = await params
+    await Product.findByIdAndDelete(id)
+    return NextResponse.json({ success: true })
+  } catch (e) {
+    return NextResponse.json({ success: false, error: String(e) }, { status: 500 })
+  }
 }

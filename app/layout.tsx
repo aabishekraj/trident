@@ -1,51 +1,41 @@
-import "./globals.css"
-import Navbar from "@/components/Navbar"
-import Footer from "@/components/Footer"
-import SmoothScroll from "@/components/SmoothScroll"
-import Providers from "@/components/Providers"
-import { Inter } from "next/font/google"
+import type { Metadata } from "next";
+import { Bebas_Neue, Barlow, Barlow_Condensed } from "next/font/google";
+import "./globals.css";
 
-const inter = Inter({
+const bebasNeue = Bebas_Neue({
+  weight: "400",
   subsets: ["latin"],
-  weight: ["400","500","600","700","800"],
-})
+  variable: "--font-bebas",
+  display: "swap",
+});
 
-export const metadata = {
-  title: "TRIDENT",
-  description: "Premium Performance Apparel",
-}
+const barlow = Barlow({
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  subsets: ["latin"],
+  variable: "--font-barlow",
+  display: "swap",
+});
+
+const barlowCondensed = Barlow_Condensed({
+  weight: ["700", "900"],
+  subsets: ["latin"],
+  variable: "--font-barlow-condensed",
+  display: "swap",
+});
+
+export const metadata: Metadata = {
+  title: "TRIDENT — Premium Footwear",
+  description: "Performance meets obsession. Engineered for those who don't stop.",
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-
   return (
-    <html lang="en">
-
-      <body className={`${inter.className} bg-black`}>
-
-        <Providers>
-
-          <SmoothScroll />
-
-          <div className="flex flex-col min-h-screen">
-
-            <Navbar />
-
-            <main className="grow pt-24">
-              {children}
-            </main>
-
-            <Footer />
-
-          </div>
-
-        </Providers>
-
-      </body>
-
+    <html lang="en" className={`${bebasNeue.variable} ${barlow.variable} ${barlowCondensed.variable}`}>
+      <body>{children}</body>
     </html>
-  )
+  );
 }

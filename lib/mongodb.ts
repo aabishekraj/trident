@@ -1,28 +1,56 @@
-import dns from "dns"
-dns.setDefaultResultOrder("ipv4first")
+import mongoose from "mongoose";
 
-import mongoose from "mongoose"
-
-const MONGODB_URI = process.env.MONGODB_URI!
-
-if (!MONGODB_URI) {
-  throw new Error("Please define MONGODB_URI")
+declare global {
+  var _mongooseCache: {
+    conn: mongoose.Connection | null;
+    promise: Promise<mongoose.Connection> | null;
+  };
 }
 
-let cached = (global as any).mongoose
-
-if (!cached) {
-  cached = (global as any).mongoose = { conn: null, promise: null }
+if (!global._mongooseCache) {
+  global._mongooseCache = { conn: null, promise: null };
 }
 
-export async function connectDB() {
+export async function connectDB(): Promise<mongoose.Connection> {
+  const MONGODB_URI = process.env.MONGODB_URI;
 
-  if (cached.conn) return cached.conn
-
-  if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI)
+  if (!MONGODB_URI) {
+    throw new Error("MONGODB_URI is not defined in .env.local");
   }
 
-  cached.conn = await cached.promise
-  return cached.conn
+  const cached = global._mongooseCache;
+
+  // Reuse live connection
+  if (cached.conn && cached.conn.readyState === 1) {
+    return cached.conn;
+  }
+
+  // Reset stale/broken connection
+  if (cached.conn && cached.conn.readyState !== 1) {
+    cached.conn = null;
+    cached.promise = null;
+  }
+
+  if (!cached.promise) {
+    console.log("[MongoDB] Connecting to:", MONGODB_URI.replace(/:([^@]+)@/, ":****@"));
+
+    cached.promise = mongoose
+      .connect(MONGODB_URI, {
+        bufferCommands: false,
+        serverSelectionTimeoutMS: 10000,
+        connectTimeoutMS: 10000,
+      })
+      .then((m) => {
+        console.log("[MongoDB] ✅ Connected successfully");
+        return m.connection;
+      })
+      .catch((err) => {
+        console.error("[MongoDB] ❌ Connection failed:", err.message);
+        cached.promise = null;
+        throw err;
+      });
+  }
+
+  cached.conn = await cached.promise;
+  return cached.conn;
 }
