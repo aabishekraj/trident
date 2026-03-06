@@ -10,7 +10,12 @@ type Product = {
   stockStatus: StockStatus; active: boolean
 }
 
-const CATEGORIES = ["Men — T-Shirts","Men — Shirts","Men — Shorts","Men — Shoes","Men — Jackets","Men — Accessories","Women — T-Shirts","Women — Dresses","Women — Shorts","Women — Shoes","Women — Jackets","Women — Accessories","Kids — Clothing","Kids — Shoes","Kids — Accessories","Unisex"]
+const CATEGORIES = [
+  "Men — T-Shirts","Men — Shirts","Men — Polo Shirts","Men — Hoodies","Men — Shorts","Men — Shoes","Men — Jackets","Men — Tracksuits","Men — Accessories",
+  "Women — T-Shirts","Women — Crop Tops","Women — Sports Bra","Women — Dresses","Women — Yoga Pants","Women — Shorts","Women — Shoes","Women — Jackets","Women — Activewear","Women — Accessories",
+  "Kids — Clothing","Kids — Shoes","Kids — Accessories",
+  "Unisex",
+]
 const SIZE_PRESETS = {
   Clothing: ["XS","S","M","L","XL","XXL","3XL"],
   Shoes:    ["UK 6","UK 7","UK 8","UK 9","UK 10","UK 11","UK 12"],
@@ -33,7 +38,9 @@ export default function AdminProductsPage() {
   const [toast, setToast]       = useState<{msg:string;ok:boolean}|null>(null)
   const [search, setSearch]     = useState("")
   const [filterStatus, setFilterStatus] = useState("")
-  const fileRef = useRef<HTMLInputElement>(null)
+  const [bulkUploading, setBulkUploading] = useState(false)
+  const fileRef    = useRef<HTMLInputElement>(null)
+  const csvFileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { load() }, [])
 
@@ -57,10 +64,67 @@ export default function AdminProductsPage() {
   }
 
   async function handleImageUpload(file: File) {
-    // Convert to base64 for demo; in production, upload to S3/Cloudinary
     const reader = new FileReader()
     reader.onload = e => setF("image", e.target?.result as string)
     reader.readAsDataURL(file)
+  }
+
+  // ── CSV Bulk Upload ─────────────────────────────────────────────────────────
+  // Expected CSV columns: name,price,description,category,tag,sizes,image,stockStatus
+  function handleCsvUpload(file: File) {
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      const text = e.target?.result as string
+      const lines = text.trim().split("\n")
+      const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, "").toLowerCase())
+
+      const rows = lines.slice(1).map(line => {
+        // Handle quoted CSV values correctly
+        const values: string[] = []
+        let current = ""
+        let inQuote = false
+        for (let i = 0; i < line.length; i++) {
+          if (line[i] === '"') { inQuote = !inQuote }
+          else if (line[i] === "," && !inQuote) { values.push(current.trim()); current = "" }
+          else { current += line[i] }
+        }
+        values.push(current.trim())
+
+        const obj: Record<string, string> = {}
+        headers.forEach((h, i) => { obj[h] = (values[i] || "").replace(/^"|"$/g, "") })
+        return obj
+      }).filter(r => r.name && r.price)
+
+      if (!rows.length) { showToast("No valid rows found in CSV.", false); return }
+
+      setBulkUploading(true)
+      try {
+        const res = await fetch("/api/products/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(rows),
+        })
+        const j = await res.json()
+        if (j.success) {
+          showToast(`✓ ${j.created} products imported!`)
+          load()
+        } else {
+          showToast(j.error || "Import failed.", false)
+        }
+      } catch { showToast("Upload error.", false) }
+      setBulkUploading(false)
+      if (csvFileRef.current) csvFileRef.current.value = ""
+    }
+    reader.readAsText(file)
+  }
+
+  function downloadCsvTemplate() {
+    const header = "name,price,description,category,tag,sizes,image,stockStatus"
+    const example = `"Air Flux Pro",189,"Premium running shoe","Men — Shoes","NEW","UK 8,UK 9,UK 10","https://example.com/image.jpg","active"`
+    const blob = new Blob([header + "\n" + example], { type: "text/csv" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a"); a.href = url; a.download = "trident_products_template.csv"; a.click()
+    URL.revokeObjectURL(url)
   }
 
   async function save() {
@@ -112,9 +176,20 @@ export default function AdminProductsPage() {
         <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "2rem", letterSpacing: 2 }}>
           PROD<span style={{ color: "#e5202e" }}>UCTS</span>
         </h1>
-        <button onClick={openAdd} style={{ background: "#e5202e", color: "#fff", border: "none", padding: ".55rem 1.3rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", cursor: "pointer" }}>
-          + ADD PRODUCT
-        </button>
+        <div style={{ display: "flex", gap: ".6rem" }}>
+          <button onClick={downloadCsvTemplate} title="Download CSV template"
+            style={{ background: "transparent", color: "#555", border: "1px solid #1e1e1e", padding: ".55rem 1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".72rem", letterSpacing: 1.5, textTransform: "uppercase", cursor: "pointer" }}>
+            CSV TEMPLATE
+          </button>
+          <button onClick={() => csvFileRef.current?.click()} disabled={bulkUploading}
+            style={{ background: bulkUploading ? "#333" : "transparent", color: bulkUploading ? "#666" : "#e5202e", border: "1px solid #e5202e", padding: ".55rem 1.1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".72rem", letterSpacing: 1.5, textTransform: "uppercase", cursor: bulkUploading ? "not-allowed" : "pointer" }}>
+            {bulkUploading ? "IMPORTING…" : "⬆ BULK IMPORT"}
+          </button>
+          <input ref={csvFileRef} type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleCsvUpload(f) }} />
+          <button onClick={openAdd} style={{ background: "#e5202e", color: "#fff", border: "none", padding: ".55rem 1.3rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", cursor: "pointer" }}>
+            + ADD PRODUCT
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

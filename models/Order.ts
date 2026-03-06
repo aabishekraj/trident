@@ -3,12 +3,22 @@ import { IOrder, OrderStatus } from "@/types";
 
 export interface OrderDocument extends Omit<IOrder, "_id">, Document {}
 
+// Generates unique order IDs like TRD-20260306-A7K2X9
+function generateOrderId(): string {
+  const date = new Date()
+  const d = date.toISOString().slice(0, 10).replace(/-/g, "")
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+  const rand = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("")
+  return `TRD-${d}-${rand}`
+}
+
 const OrderItemSchema = new Schema(
   {
     productId: { type: String, required: true },
     name:      { type: String, required: true },
     price:     { type: Number, required: true },
     qty:       { type: Number, required: true, min: 1 },
+    size:      { type: String, default: "" },
   },
   { _id: false }
 );
@@ -29,8 +39,12 @@ const OrderSchema = new Schema<OrderDocument>(
       type: String,
       required: true,
       unique: true,
-      default: () => `TRD-${Date.now().toString().slice(-6)}`,
+      default: generateOrderId,
     },
+    paymentMethod: { type: String, default: "card" },
+    paymentStatus: { type: String, enum: ["pending","paid","failed","refunded"], default: "pending" },
+    stripeSessionId: { type: String, default: "" },
+    trackingNumber:  { type: String, default: "" },
     customer:    { type: CustomerSchema, required: true },
     items:       { type: [OrderItemSchema], required: true },
     totalAmount: { type: Number, required: true },

@@ -11,7 +11,7 @@ type CartItem = {
 }
 
 function safeImg(url?: string) {
-  return url && url.startsWith("http") ? url : "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&q=60"
+  return url && (url.startsWith("http") || url.startsWith("data:")) ? url : "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&q=60"
 }
 function finalPrice(p: CartItem) {
   return p.couponDiscount ? +(p.price * (1 - p.couponDiscount / 100)).toFixed(2) : p.price
@@ -60,26 +60,57 @@ export default function CheckoutPage() {
   function setF(key: string, val: string) { setForm(f => ({ ...f, [key]: val })) }
 
   async function placeOrder() {
+    if (!form.name || !form.email || !form.address) return
     setPlacing(true)
     try {
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customer: { name: form.name, email: form.email, phone: form.phone, address: `${form.address}, ${form.city}, ${form.state} ${form.zip}, ${form.country}` },
-          items: cart.map(i => ({ productId: i._id, name: i.name, price: finalPrice(i), qty: i.qty, size: i.selectedSize })),
-          totalAmount: total,
-          paymentMethod: form.paymentMethod,
-          status: form.paymentMethod === "cod" ? "pending" : "processing",
-        }),
-      })
-      const j = await res.json()
-      if (j.success) {
-        setOrderId(j.data.orderId)
-        sessionStorage.removeItem("trident_cart")
-        setStep("confirm")
+      const shippingAddress = `${form.address}, ${form.city}, ${form.state} ${form.zip}, ${form.country}`
+
+      if (form.paymentMethod === "card") {
+        // Redirect to Stripe Checkout — order is pre-created server-side
+        const res = await fetch("/api/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cart: cart.map(i => ({ ...i, price: finalPrice(i) })),
+            customer: { name: form.name, email: form.email, phone: form.phone },
+            shippingAddress,
+          }),
+        })
+        const j = await res.json()
+        if (j.url) {
+          sessionStorage.removeItem("trident_cart")
+          window.location.href = j.url   // redirect to Stripe hosted checkout
+          return
+        } else {
+          alert(j.error || "Payment failed. Please try again.")
+        }
+      } else {
+        // COD or UPI — create order directly
+        const res = await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customer: { name: form.name, email: form.email, phone: form.phone, address: shippingAddress },
+            items: cart.map(i => ({ productId: i._id, name: i.name, price: finalPrice(i), qty: i.qty, size: i.selectedSize })),
+            totalAmount: total,
+            paymentMethod: form.paymentMethod,
+            paymentStatus: form.paymentMethod === "cod" ? "pending" : "pending",
+            status: "pending",
+          }),
+        })
+        const j = await res.json()
+        if (j.success) {
+          setOrderId(j.data.orderId)
+          sessionStorage.removeItem("trident_cart")
+          setStep("confirm")
+        } else {
+          alert(j.error || "Failed to place order.")
+        }
       }
-    } catch { /* handle error */ }
+    } catch (e) {
+      console.error(e)
+      alert("Something went wrong. Please try again.")
+    }
     setPlacing(false)
   }
 

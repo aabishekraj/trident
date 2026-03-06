@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Order from "@/models/Order";
+import { sendStatusUpdate } from "@/lib/email";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -44,6 +45,22 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (!order) {
       return NextResponse.json({ success: false, error: "Order not found" }, { status: 404 });
     }
+
+    // Send status update email when status changes
+    if (body.status && body.status !== "pending") {
+      const o = order as unknown as { orderId: string; customer: { name: string; email: string; address: string }; items: { name: string; qty: number; price: number; size?: string }[]; totalAmount: number; trackingNumber?: string }
+      sendStatusUpdate({
+        orderId: o.orderId,
+        customerName: o.customer.name,
+        customerEmail: o.customer.email,
+        items: o.items,
+        totalAmount: o.totalAmount,
+        shippingAddress: o.customer.address || "",
+        status: body.status,
+        trackingNumber: body.trackingNumber || o.trackingNumber,
+      }).catch(e => console.error("[EMAIL status]", e));
+    }
+
     return NextResponse.json({ success: true, data: order });
   } catch (error: unknown) {
     console.error("[PUT /api/orders/:id]", error);

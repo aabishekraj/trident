@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Order from "@/models/Order";
+import { sendOrderConfirmation } from "@/lib/email";
 
 // ─── GET /api/orders ──────────────────────────────────────────────────────────
-// Query params: ?status=pending&search=john&page=1&limit=10
 export async function GET(req: NextRequest) {
   try {
     await connectDB();
@@ -11,16 +11,17 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const status  = searchParams.get("status")  || "";
     const search  = searchParams.get("search")  || "";
+    const email   = searchParams.get("email")   || "";
     const page    = parseInt(searchParams.get("page")  || "1");
-    const limit   = parseInt(searchParams.get("limit") || "10");
+    const limit   = parseInt(searchParams.get("limit") || "20");
 
-    // Build filter
     const filter: Record<string, unknown> = {};
     if (status) filter.status = status;
+    if (email)  filter["customer.email"] = email.toLowerCase();
     if (search) {
       filter.$or = [
         { orderId: { $regex: search, $options: "i" } },
-        { "customer.name": { $regex: search, $options: "i" } },
+        { "customer.name":  { $regex: search, $options: "i" } },
         { "customer.email": { $regex: search, $options: "i" } },
       ];
     }
@@ -68,6 +69,17 @@ export async function POST(req: NextRequest) {
     }
 
     const order = await Order.create(body);
+
+    // Send confirmation email (non-blocking)
+    sendOrderConfirmation({
+      orderId: order.orderId,
+      customerName: order.customer.name,
+      customerEmail: order.customer.email,
+      items: order.items,
+      totalAmount: order.totalAmount,
+      shippingAddress: order.customer.address || "",
+    }).catch(e => console.error("[EMAIL confirm]", e));
+
     return NextResponse.json({ success: true, data: order }, { status: 201 });
   } catch (error: unknown) {
     console.error("[POST /api/orders]", error);

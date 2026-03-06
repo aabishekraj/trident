@@ -250,7 +250,7 @@ export default function HomePage() {
                 {[
                   { label: "My Orders",   href: "/orders"  },
                   { label: "Account",     href: "/account" },
-                  { label: "Wishlist",    href: "/wishlist" },
+                  { label: "Wishlist",    href: "/account/wishlist" },
                 ].map(item => (
                   <Link key={item.href} href={item.href} style={{ display: "block", padding: ".65rem 1.2rem", color: "#888", fontSize: ".8rem", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", textDecoration: "none", transition: "all .15s", borderLeft: "2px solid transparent" }}
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#f5f5f5"; (e.currentTarget as HTMLElement).style.borderLeftColor = "#e5202e"; (e.currentTarget as HTMLElement).style.paddingLeft = "1.5rem" }}
@@ -580,6 +580,22 @@ function ProductCard({ product: p, index, onAdd }: { product: Product; index: nu
   const fp = finalPrice(p)
   const isSoldOut    = p.stockStatus === "sold_out"
   const isComingSoon = p.stockStatus === "coming_soon"
+  const [wishlisted, setWishlisted] = useState(false)
+
+  useEffect(() => {
+    const wl: Product[] = JSON.parse(localStorage.getItem("trident_wishlist") || "[]")
+    setWishlisted(wl.some(x => x._id === p._id))
+  }, [p._id])
+
+  function toggleWishlist(e: React.MouseEvent) {
+    e.stopPropagation()
+    const wl: Product[] = JSON.parse(localStorage.getItem("trident_wishlist") || "[]")
+    let updated: Product[]
+    if (wishlisted) { updated = wl.filter(x => x._id !== p._id) }
+    else { updated = [...wl, p] }
+    localStorage.setItem("trident_wishlist", JSON.stringify(updated))
+    setWishlisted(!wishlisted)
+  }
 
   return (
     <div className="product-card" style={{ background: "#0a0a0a", overflow: "hidden", position: "relative", animationDelay: `${index * 0.07}s` }}>
@@ -592,9 +608,14 @@ function ProductCard({ product: p, index, onAdd }: { product: Product; index: nu
         {p.tag && !isSoldOut && !isComingSoon && (
           <span style={{ position: "absolute", top: "1rem", left: "1rem", background: "#e5202e", color: "#fff", fontSize: ".65rem", fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", padding: ".3rem .7rem" }}>{p.tag}</span>
         )}
+        {/* Wishlist button */}
+        <button onClick={toggleWishlist} title={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          style={{ position: "absolute", top: ".75rem", right: ".75rem", width: 32, height: 32, borderRadius: "50%", background: wishlisted ? "#e5202e" : "rgba(0,0,0,.6)", border: `1px solid ${wishlisted ? "#e5202e" : "#333"}`, color: wishlisted ? "#fff" : "#888", fontSize: ".9rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all .2s" }}>
+          {wishlisted ? "♥" : "♡"}
+        </button>
         {/* Coupon badge */}
         {p.couponDiscount && (
-          <span className="coupon-badge" style={{ position: "absolute", top: "1rem", right: "1rem", background: "#22c55e", color: "#fff", fontSize: ".65rem", fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", padding: ".3rem .7rem" }}>-{p.couponDiscount}% OFF</span>
+          <span className="coupon-badge" style={{ position: "absolute", bottom: "1rem", left: "1rem", background: "#22c55e", color: "#fff", fontSize: ".65rem", fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", padding: ".3rem .7rem" }}>-{p.couponDiscount}% OFF</span>
         )}
         {/* Status overlay */}
         {(isSoldOut || isComingSoon) && (
