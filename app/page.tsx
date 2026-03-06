@@ -80,7 +80,7 @@ const MARQUEE = ["PERFORMANCE","★","INNOVATION","★","TRIDENT","★","JUST DO
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function safeImg(url?: string) {
-  return url && url.startsWith("http") ? url : "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80"
+  return url && (url.startsWith("http") || url.startsWith("data:")) ? url : "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80"
 }
 function finalPrice(p: Product) {
   return p.couponDiscount ? +(p.price * (1 - p.couponDiscount / 100)).toFixed(2) : p.price
@@ -109,7 +109,7 @@ export default function HomePage() {
   useEffect(() => {
     fetch("/api/products")
       .then(r => r.json())
-      .then(d => { if (Array.isArray(d) && d.length) setProducts(d) })
+      .then(d => { if (Array.isArray(d) && d.length) setProducts([...d, ...FALLBACK]) })
       .catch(() => {})
   }, [])
 
