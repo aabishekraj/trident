@@ -1,7 +1,8 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -124,10 +125,19 @@ export default function AdminLoginPage() {
           </button>
         </div>
 
-        <div style={{ textAlign: "center", marginTop: "1.5rem", fontSize: ".78rem", color: "#555" }}>
-          Default: admin / trident2026 — change in .env.local
+        <div style={{ textAlign: "center", marginTop: "1.5rem", fontSize: ".78rem", color: "#444" }}>
+          Default: <code style={{ color: "#666" }}>admin</code> / <code style={{ color: "#666" }}>trident2026</code> — change in <code style={{ color: "#666" }}>.env.local</code>
+        </div>
+
+        <div style={{ textAlign: "center", marginTop: "1rem" }}>
+          <Link href="/" style={{ fontSize: ".75rem", color: "#444", textDecoration: "none", letterSpacing: 1, textTransform: "uppercase", fontWeight: 700, transition: "color .2s" }}
+            onMouseEnter={e => (e.currentTarget.style.color = "#888")}
+            onMouseLeave={e => (e.currentTarget.style.color = "#444")}
+          >
+            ← Back to Store
+          </Link>
         </div>
       </div>
     </div>
-  );
+  )
 }

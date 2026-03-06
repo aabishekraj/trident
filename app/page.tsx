@@ -224,30 +224,55 @@ export default function HomePage() {
 
         {/* Right controls */}
         <div style={{ display: "flex", alignItems: "center", gap: "1.2rem" }}>
-          {/* Admin */}
-          <Link href="/admin" style={{
-            background: "#e5202e", color: "#fff", padding: ".45rem 1rem",
-            fontWeight: 800, fontSize: ".72rem", letterSpacing: 2,
-            textTransform: "uppercase", textDecoration: "none",
-          }}>⚡ ADMIN</Link>
 
           {/* Customer auth */}
           {customer ? (
             <div style={{ position: "relative" }} className="nav-item">
-              <button className="nav-link" style={{ display: "flex", alignItems: "center", gap: ".4rem" }}>
-                <span style={{ width: 26, height: 26, borderRadius: "50%", background: "#e5202e", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".75rem", fontWeight: 800 }}>
+              <button className="nav-link" style={{ display: "flex", alignItems: "center", gap: ".5rem" }}>
+                {/* Avatar */}
+                <span style={{ width: 28, height: 28, borderRadius: "50%", background: "#e5202e", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".78rem", fontWeight: 800, flexShrink: 0 }}>
                   {customer.name.charAt(0).toUpperCase()}
                 </span>
-                {customer.name.split(" ")[0]}
+                <span style={{ maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{customer.name.split(" ")[0]}</span>
+                <span style={{ color: "#555", fontSize: ".6rem" }}>▾</span>
               </button>
+              {/* Dropdown menu */}
               <div className="nav-dropdown" style={{
-                position: "absolute", top: "100%", right: 0,
+                position: "absolute", top: "calc(100% + 4px)", right: 0,
                 background: "#0d0d0d", border: "1px solid #1e1e1e",
-                minWidth: 160, padding: ".5rem 0", zIndex: 100,
+                minWidth: 180, zIndex: 100,
               }}>
-                <Link href="/orders" style={{ display: "block", padding: ".65rem 1.2rem", color: "#888", fontSize: ".8rem", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", textDecoration: "none" }}>My Orders</Link>
-                <Link href="/account" style={{ display: "block", padding: ".65rem 1.2rem", color: "#888", fontSize: ".8rem", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", textDecoration: "none" }}>Account</Link>
-                <button onClick={signOut} style={{ display: "block", width: "100%", textAlign: "left", padding: ".65rem 1.2rem", color: "#e5202e", fontSize: ".8rem", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", background: "none", border: "none", cursor: "pointer" }}>Sign Out</button>
+                {/* User info header */}
+                <div style={{ padding: ".85rem 1.2rem", borderBottom: "1px solid #141414" }}>
+                  <div style={{ fontSize: ".82rem", fontWeight: 700, color: "#f5f5f5" }}>{customer.name}</div>
+                  <div style={{ fontSize: ".72rem", color: "#555", marginTop: ".2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{customer.email}</div>
+                </div>
+                {[
+                  { label: "My Orders",   href: "/orders"  },
+                  { label: "Account",     href: "/account" },
+                  { label: "Wishlist",    href: "/wishlist" },
+                ].map(item => (
+                  <Link key={item.href} href={item.href} style={{ display: "block", padding: ".65rem 1.2rem", color: "#888", fontSize: ".8rem", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", textDecoration: "none", transition: "all .15s", borderLeft: "2px solid transparent" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#f5f5f5"; (e.currentTarget as HTMLElement).style.borderLeftColor = "#e5202e"; (e.currentTarget as HTMLElement).style.paddingLeft = "1.5rem" }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "#888"; (e.currentTarget as HTMLElement).style.borderLeftColor = "transparent"; (e.currentTarget as HTMLElement).style.paddingLeft = "1.2rem" }}
+                  >{item.label}</Link>
+                ))}
+                {/* Divider */}
+                <div style={{ margin: ".3rem 0", borderTop: "1px solid #141414" }} />
+                {/* Sign out — prominently styled */}
+                <button onClick={signOut} style={{
+                  display: "flex", alignItems: "center", gap: ".5rem",
+                  width: "100%", padding: ".75rem 1.2rem",
+                  color: "#e5202e", fontSize: ".8rem", fontWeight: 700,
+                  letterSpacing: 1, textTransform: "uppercase",
+                  background: "none", border: "none", cursor: "pointer",
+                  transition: "background .15s",
+                }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "rgba(229,32,46,.08)")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                >
+                  <span style={{ fontSize: ".9rem" }}>⏻</span> Sign Out
+                </button>
               </div>
             </div>
           ) : (
@@ -266,12 +291,12 @@ export default function HomePage() {
           {/* Cart */}
           <button onClick={() => setCartOpen(true)} style={{
             position: "relative", background: "none", border: "none",
-            color: "#f5f5f5", fontSize: "1.15rem", cursor: "pointer",
+            color: "#f5f5f5", fontSize: "1.15rem", cursor: "pointer", padding: "4px",
           }}>
             🛒
             {cartCount > 0 && (
               <span style={{
-                position: "absolute", top: -8, right: -8,
+                position: "absolute", top: -6, right: -6,
                 background: "#e5202e", color: "#fff", width: 18, height: 18,
                 borderRadius: "50%", fontSize: ".6rem", fontWeight: 800,
                 display: "flex", alignItems: "center", justifyContent: "center",
@@ -450,6 +475,26 @@ export default function HomePage() {
           )}
         </div>
       </div>
+
+      {/* ══ BRAND VALUE STRIP ══════════════════════════════════════════════ */}
+      <section style={{ background: "#050505", borderTop: "1px solid #1e1e1e", borderBottom: "1px solid #1e1e1e", padding: "3.5rem 2.5rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: "3rem", maxWidth: 1100, margin: "0 auto" }}>
+          {[
+            { icon: "🚚", title: "Free Shipping",      sub: "On all orders over $100. Fast & tracked delivery worldwide." },
+            { icon: "↩",  title: "Easy Returns",       sub: "30-day hassle-free returns. No questions asked."            },
+            { icon: "🔒", title: "Secure Checkout",    sub: "256-bit SSL encryption. Your data is always safe."          },
+            { icon: "⚡", title: "Member Rewards",     sub: "Earn points on every purchase. Redeem for exclusive perks."  },
+          ].map(({ icon, title, sub }) => (
+            <div key={title} style={{ display: "flex", gap: "1rem", alignItems: "flex-start" }}>
+              <span style={{ fontSize: "1.4rem", flexShrink: 0, marginTop: ".1rem" }}>{icon}</span>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: ".88rem", letterSpacing: .5, marginBottom: ".4rem" }}>{title}</div>
+                <div style={{ color: "#555", fontSize: ".8rem", lineHeight: 1.6 }}>{sub}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* ══ FOOTER ════════════════════════════════════════════════════════════ */}
       <footer style={{ background: "#050505", borderTop: "1px solid #1e1e1e", paddingTop: "4rem" }}>
