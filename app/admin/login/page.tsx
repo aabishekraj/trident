@@ -2,10 +2,8 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 
 export default function AdminLoginPage() {
-  const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError]       = useState("");
@@ -24,7 +22,8 @@ export default function AdminLoginPage() {
       });
       const json = await res.json();
       if (json.success) {
-        router.push("/admin");
+        // Hard navigation ensures the session cookie is sent with the next request
+        window.location.href = "/admin";
       } else {
         setError(json.error ?? "Invalid credentials.");
       }

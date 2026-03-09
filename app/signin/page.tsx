@@ -24,8 +24,6 @@ export default function SignInPage() {
   const [otp, setOtp]       = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError]   = useState("")
-  const [sentOtp, setSentOtp] = useState("") // In production, this comes from the server
-
   async function sendOtp() {
     if (!email) return setError("Please enter your email.")
     if (mode === "register" && !name) return setError("Please enter your name.")
@@ -38,18 +36,12 @@ export default function SignInPage() {
       })
       const j = await res.json()
       if (j.success) {
-        // In dev mode, OTP returned in response for testing
-        if (j.devOtp) setSentOtp(j.devOtp)
         setStep("verify")
       } else {
         setError(j.error || "Failed to send OTP.")
       }
     } catch {
-      // Fallback for demo: generate local OTP
-      const localOtp = Math.floor(100000 + Math.random() * 900000).toString()
-      setSentOtp(localOtp)
-      setStep("verify")
-      console.log("Demo OTP:", localOtp)
+      setError("Network error. Please try again.")
     }
     setLoading(false)
   }
@@ -61,7 +53,7 @@ export default function SignInPage() {
       const res = await fetch("/api/auth/customer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name, otp, expectedOtp: sentOtp, action: "verifyOtp" }),
+        body: JSON.stringify({ email, name, otp, action: "verifyOtp" }),
       })
       const j = await res.json()
       if (j.success) {
@@ -71,14 +63,7 @@ export default function SignInPage() {
         setError(j.error || "Invalid OTP.")
       }
     } catch {
-      // Demo fallback
-      if (otp === sentOtp) {
-        const customer = { name: name || email.split("@")[0], email, token: "demo_" + Date.now() }
-        localStorage.setItem("trident_customer", JSON.stringify(customer))
-        router.push("/")
-      } else {
-        setError("Incorrect OTP. Please try again.")
-      }
+      setError("Network error. Please try again.")
     }
     setLoading(false)
   }
@@ -142,11 +127,6 @@ export default function SignInPage() {
                   placeholder="------" maxLength={6} value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ""))}
                   onKeyDown={e => e.key === "Enter" && verifyOtp()}
                 />
-                {sentOtp && (
-                  <p style={{ color: "#555", fontSize: ".72rem", marginTop: ".5rem", textAlign: "center" }}>
-                    Demo mode — OTP: <strong style={{ color: "#eab308" }}>{sentOtp}</strong>
-                  </p>
-                )}
               </div>
               {error && <div style={{ color: "#e5202e", fontSize: ".82rem", fontWeight: 600, marginBottom: "1rem" }}>{error}</div>}
               <button onClick={verifyOtp} disabled={loading}

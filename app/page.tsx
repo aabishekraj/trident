@@ -19,9 +19,11 @@ type Customer = { name: string; email: string; token: string }
 const NAV_ITEMS = [
   {
     label: "Men",
+    href: "/collection/men",
     dropdown: [
       { label: "T-Shirts",     href: "/collection/men/tshirts" },
       { label: "Shirts",       href: "/collection/men/shirts" },
+      { label: "Hoodies",      href: "/collection/men/hoodies" },
       { label: "Shorts",       href: "/collection/men/shorts" },
       { label: "Shoes",        href: "/collection/men/shoes" },
       { label: "Jackets",      href: "/collection/men/jackets" },
@@ -30,17 +32,20 @@ const NAV_ITEMS = [
   },
   {
     label: "Women",
+    href: "/collection/women",
     dropdown: [
       { label: "T-Shirts",     href: "/collection/women/tshirts" },
       { label: "Dresses",      href: "/collection/women/dresses" },
       { label: "Shorts",       href: "/collection/women/shorts" },
       { label: "Shoes",        href: "/collection/women/shoes" },
       { label: "Jackets",      href: "/collection/women/jackets" },
+      { label: "Activewear",   href: "/collection/women/activewear" },
       { label: "Accessories",  href: "/collection/women/accessories" },
     ],
   },
   {
     label: "Kids",
+    href: "/collection/kids",
     dropdown: [
       { label: "Clothing",     href: "/collection/kids/clothing" },
       { label: "Shoes",        href: "/collection/kids/shoes" },
@@ -49,19 +54,21 @@ const NAV_ITEMS = [
   },
   {
     label: "New Arrivals",
+    href: "/collection/new",
     dropdown: [
       { label: "Just Dropped",   href: "/collection/new" },
-      { label: "SS 2026",        href: "/collection/ss2026" },
-      { label: "Limited Edition",href: "/collection/limited" },
+      { label: "SS 2026",        href: "/collection/men" },
+      { label: "Limited Edition",href: "/collection/men" },
     ],
   },
   {
     label: "Collections",
+    href: "/collection/men",
     dropdown: [
-      { label: "SS 2026",        href: "/collection/ss2026" },
-      { label: "Classics",       href: "/collection/classics" },
-      { label: "Collaborations", href: "/collection/collabs" },
-      { label: "Sale",           href: "/collection/sale" },
+      { label: "Men",            href: "/collection/men" },
+      { label: "Women",          href: "/collection/women" },
+      { label: "Kids",           href: "/collection/kids" },
+      { label: "Unisex",         href: "/collection/unisex" },
     ],
   },
 ]
@@ -195,7 +202,7 @@ export default function HomePage() {
         <div style={{ display: "flex", gap: "2.5rem", alignItems: "center" }}>
           {NAV_ITEMS.map(item => (
             <div key={item.label} className="nav-item" style={{ position: "relative", padding: "20px 0" }}>
-              <button className="nav-link">{item.label}</button>
+              <Link href={item.href} className="nav-link" style={{ textDecoration: "none" }}>{item.label}</Link>
               {/* Dropdown */}
               <div className="nav-dropdown" style={{
                 position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)",
@@ -248,7 +255,7 @@ export default function HomePage() {
                   <div style={{ fontSize: ".72rem", color: "#555", marginTop: ".2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{customer.email}</div>
                 </div>
                 {[
-                  { label: "My Orders",   href: "/orders"  },
+                  { label: "My Orders",   href: "/account/orders"  },
                   { label: "Account",     href: "/account" },
                   { label: "Wishlist",    href: "/account/wishlist" },
                 ].map(item => (
