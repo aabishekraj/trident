@@ -1,55 +1,15 @@
 import mongoose, { Schema, Document, Model } from "mongoose"
 import crypto from "crypto"
 
-export type AdminRole = "superadmin" | "manager" | "order_manager" | "analyst"
-
-// Role permissions matrix
-export const ROLE_PERMISSIONS: Record<AdminRole, {
-  dashboard: boolean
-  orders:    { view: boolean; edit: boolean; delete: boolean }
-  products:  { view: boolean; create: boolean; edit: boolean; delete: boolean; bulkImport: boolean }
-  coupons:   { view: boolean; create: boolean; edit: boolean; delete: boolean }
-  analytics: boolean
-  users:     { view: boolean; create: boolean; edit: boolean; delete: boolean }
-}> = {
-  superadmin: {
-    dashboard: true,
-    orders:    { view: true,  edit: true,  delete: true  },
-    products:  { view: true,  create: true,  edit: true,  delete: true,  bulkImport: true  },
-    coupons:   { view: true,  create: true,  edit: true,  delete: true  },
-    analytics: true,
-    users:     { view: true,  create: true,  edit: true,  delete: true  },
-  },
-  manager: {
-    dashboard: true,
-    orders:    { view: true,  edit: true,  delete: false },
-    products:  { view: true,  create: true,  edit: true,  delete: false, bulkImport: true  },
-    coupons:   { view: true,  create: true,  edit: true,  delete: false },
-    analytics: true,
-    users:     { view: true,  create: false, edit: false, delete: false },
-  },
-  order_manager: {
-    dashboard: true,
-    orders:    { view: true,  edit: true,  delete: false },
-    products:  { view: true,  create: false, edit: false, delete: false, bulkImport: false },
-    coupons:   { view: true,  create: false, edit: false, delete: false },
-    analytics: false,
-    users:     { view: false, create: false, edit: false, delete: false },
-  },
-  analyst: {
-    dashboard: true,
-    orders:    { view: true,  edit: false, delete: false },
-    products:  { view: true,  create: false, edit: false, delete: false, bulkImport: false },
-    coupons:   { view: true,  create: false, edit: false, delete: false },
-    analytics: true,
-    users:     { view: false, create: false, edit: false, delete: false },
-  },
-}
+// Re-export from the client-safe module so existing server imports keep working
+export type { AdminRole } from "@/lib/roles"
+export { ROLE_PERMISSIONS } from "@/lib/roles"
+import type { AdminRole } from "@/lib/roles"
 
 export interface AdminUserDocument extends Document {
   username:  string
   email:     string
-  password:  string   // bcrypt hash
+  password:  string
   role:      AdminRole
   active:    boolean
   lastLogin: Date | null
@@ -60,7 +20,6 @@ export interface AdminUserDocument extends Document {
 const AdminUserSchema = new Schema<AdminUserDocument>({
   username:  { type: String, required: true, unique: true, trim: true },
   email:     { type: String, required: true, unique: true, lowercase: true, trim: true },
-  // Simple SHA-256 hash (no bcrypt dependency needed)
   password:  { type: String, required: true },
   role:      { type: String, enum: ["superadmin","manager","order_manager","analyst"], default: "analyst" },
   active:    { type: Boolean, default: true },
@@ -68,7 +27,6 @@ const AdminUserSchema = new Schema<AdminUserDocument>({
   createdBy: { type: String, default: "system" },
 }, { timestamps: true })
 
-// Simple hash helper (avoids bcrypt dependency — swap for bcrypt in production)
 AdminUserSchema.methods.checkPassword = function(plain: string): boolean {
   const hash = crypto.createHash("sha256").update(plain + (process.env.ADMIN_SALT || "trident_salt")).digest("hex")
   return hash === this.password

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ROLE_PERMISSIONS, AdminRole } from "@/models/AdminUser"
+import { ROLE_PERMISSIONS, AdminRole } from "@/lib/roles"
 
 type AdminUser = {
   _id: string; username: string; email: string; role: AdminRole
