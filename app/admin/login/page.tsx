@@ -14,21 +14,40 @@ export default function AdminLoginPage() {
     setLoading(true);
     setError("");
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
     try {
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
+        signal: controller.signal,
       });
-      const json = await res.json();
+
+      clearTimeout(timeout);
+
+      let json: { success: boolean; error?: string } = { success: false };
+      try {
+        json = await res.json();
+      } catch {
+        setError(`Server returned an unexpected response (HTTP ${res.status}). Check server logs.`);
+        return;
+      }
+
       if (json.success) {
-        // Hard navigation ensures the session cookie is sent with the next request
+        // Hard navigation ensures the session cookie is included in the next request
         window.location.href = "/admin";
       } else {
         setError(json.error ?? "Invalid credentials.");
       }
-    } catch {
-      setError("Network error. Try again.");
+    } catch (err: unknown) {
+      clearTimeout(timeout);
+      if (err instanceof Error && err.name === "AbortError") {
+        setError("Request timed out. The server may be starting up — please try again.");
+      } else {
+        setError("Network error. Make sure the server is running.");
+      }
     } finally {
       setLoading(false);
     }

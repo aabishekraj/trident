@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import { connectDB } from "@/lib/mongodb"
 import nodemailer from "nodemailer"
 
 // Simple in-memory OTP store (replace with Redis in production)
@@ -66,7 +65,6 @@ async function sendOtpEmail(to: string, otp: string, name: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    await connectDB()
     const { email, name, otp, action } = await req.json()
 
     if (!email) return NextResponse.json({ success: false, error: "Email required" }, { status: 400 })
