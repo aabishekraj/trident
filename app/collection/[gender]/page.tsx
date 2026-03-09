@@ -13,7 +13,7 @@ type Product = {
 const GENDER_META: Record<string, { label: string; hero: string; sub: { label: string; slug: string }[] }> = {
   men: {
     label: "MEN",
-    hero: "https://images.unsplash.com/photo-1556906781-9a412961a28c?w=1600&q=80",
+    hero: "https://images.unsplash.com/photo-1617137968427-85924c800a22?w=1600&q=80",
     sub: [
       { label: "T-Shirts",    slug: "tshirts"    },
       { label: "Shirts",      slug: "shirts"     },

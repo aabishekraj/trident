@@ -21,22 +21,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: "username and password required" }, { status: 400 })
   }
 
-  // 1. Try DB admin users first
-  try {
-    await connectDB()
-    const dbUser = await AdminUser.findOne({ username, active: true })
-    if (dbUser && dbUser.checkPassword(password)) {
-      await AdminUser.findByIdAndUpdate(dbUser._id, { lastLogin: new Date() })
-      const sessionPayload = JSON.stringify({ id: dbUser._id, username: dbUser.username, role: dbUser.role })
-      const sessionToken   = Buffer.from(sessionPayload).toString("base64")
-
-      const res = NextResponse.json({ success: true, role: dbUser.role, username: dbUser.username })
-      setCookie(res, sessionToken)
-      return res
-    }
-  } catch { /* fall through to env-var auth */ }
-
-  // 2. Fallback to env-var superadmin credentials
+  // 1. Env-var superadmin check first (instant, no DB needed)
   if (username === ADMIN_USER && password === ADMIN_PASS) {
     const sessionPayload = JSON.stringify({ username, role: "superadmin" })
     const sessionToken   = Buffer.from(sessionPayload).toString("base64")
@@ -44,6 +29,21 @@ export async function POST(req: NextRequest) {
     setCookie(res, sessionToken)
     return res
   }
+
+  // 2. Try DB admin users with a 4-second timeout to avoid hanging
+  try {
+    const timeout = new Promise<null>((_, reject) => setTimeout(() => reject(new Error("db_timeout")), 4000))
+    await Promise.race([connectDB(), timeout])
+    const dbUser = await AdminUser.findOne({ username, active: true })
+    if (dbUser && dbUser.checkPassword(password)) {
+      await AdminUser.findByIdAndUpdate(dbUser._id, { lastLogin: new Date() })
+      const sessionPayload = JSON.stringify({ id: dbUser._id, username: dbUser.username, role: dbUser.role })
+      const sessionToken   = Buffer.from(sessionPayload).toString("base64")
+      const res = NextResponse.json({ success: true, role: dbUser.role, username: dbUser.username })
+      setCookie(res, sessionToken)
+      return res
+    }
+  } catch { /* DB unavailable or timeout — fall through */ }
 
   return NextResponse.json({ success: false, error: "Invalid credentials" }, { status: 401 })
 }
