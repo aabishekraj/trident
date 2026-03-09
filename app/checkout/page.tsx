@@ -138,7 +138,7 @@ export default function CheckoutPage() {
         </div>
         <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
           <Link href="/" style={{ background: "#f5f5f5", color: "#0a0a0a", padding: ".8rem 2rem", fontWeight: 800, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none" }}>KEEP SHOPPING</Link>
-          <Link href="/orders" style={{ border: "1px solid #222", color: "#888", padding: ".8rem 2rem", fontWeight: 700, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none" }}>TRACK ORDER</Link>
+          <Link href={orderId ? `/track?id=${orderId}` : "/track"} style={{ border: "1px solid #222", color: "#888", padding: ".8rem 2rem", fontWeight: 700, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none" }}>TRACK ORDER</Link>
         </div>
       </div>
     </div>
