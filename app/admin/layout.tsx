@@ -1,13 +1,11 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
-import { ReactNode, useEffect, useState } from "react"
+import { usePathname } from "next/navigation"
+import { ReactNode } from "react"
+import { AdminSessionProvider, useAdminSession } from "@/context/AdminSessionContext"
 import { ROLE_PERMISSIONS, AdminRole } from "@/lib/roles"
 
-type SessionInfo = { username: string; role: AdminRole; loggedIn: boolean }
-
-// Which permission key gates each nav entry
 const NAV: { href: string; icon: string; label: string; permKey: keyof typeof ROLE_PERMISSIONS[AdminRole] }[] = [
   { href: "/admin",           icon: "▦",  label: "Dashboard",  permKey: "dashboard"  },
   { href: "/admin/orders",    icon: "📦", label: "Orders",     permKey: "orders"     },
@@ -26,51 +24,27 @@ function hasAccess(role: AdminRole, permKey: string): boolean {
   return false
 }
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
-  const path   = usePathname()
-  const router = useRouter()
-  const [session,     setSession]     = useState<SessionInfo | null>(null)
-  const [loggingOut,  setLoggingOut]  = useState(false)
-  const [sessionLoaded, setSessionLoaded] = useState(false)
-
-  useEffect(() => {
-    fetch("/api/admin/login")
-      .then(r => r.json())
-      .then(d => { setSession(d); setSessionLoaded(true) })
-      .catch(() => setSessionLoaded(true))
-  }, [])
+function AdminLayoutInner({ children }: { children: ReactNode }) {
+  const path    = usePathname()
+  const session = useAdminSession()
+  const role    = (session?.role ?? "analyst") as AdminRole
 
   async function handleLogout() {
-    setLoggingOut(true)
     try { await fetch("/api/admin/login", { method: "DELETE" }) } catch { /* ignore */ }
     window.location.href = "/admin/login"
   }
 
-  // While fetching session, show nothing (proxy already protects the route)
-  if (!sessionLoaded) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#0a0a0a", display: "flex", alignItems: "center", justifyContent: "center", color: "#555", fontFamily: "'Barlow', sans-serif", fontSize: ".85rem", letterSpacing: 2 }}>
-        LOADING…
-      </div>
-    )
-  }
-
-  const role = (session?.role ?? "analyst") as AdminRole
-
-  // Filter nav to only items the current role can access
   const visibleNav = NAV.filter(n => hasAccess(role, n.permKey))
-
-  // Check if current path is allowed
   const currentNav = NAV.find(n => path === n.href || (n.href !== "/admin" && path.startsWith(n.href)))
-  const currentPathAllowed = !currentNav || hasAccess(role, currentNav.permKey)
+  const allowed    = !currentNav || hasAccess(role, currentNav.permKey)
 
   return (
     <div style={{ display: "flex", height: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Barlow', sans-serif" }}>
 
-      {/* ── Sidebar ── */}
+      {/* Sidebar */}
       <aside style={{ width: 220, background: "#050505", borderRight: "1px solid #1e1e1e", display: "flex", flexDirection: "column", flexShrink: 0 }}>
 
-        {/* Brand + user info */}
+        {/* Brand + user chip */}
         <div style={{ padding: "1.5rem", borderBottom: "1px solid #1e1e1e" }}>
           <Link href="/" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.6rem", letterSpacing: 4, color: "#f5f5f5", textDecoration: "none" }}>
             <span style={{ color: "#e5202e" }}>TRIDENT</span>
@@ -89,7 +63,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           )}
         </div>
 
-        {/* Nav links — filtered by role */}
+        {/* Nav */}
         <nav style={{ flex: 1, padding: ".75rem 0" }}>
           {visibleNav.map(({ href, icon, label }) => {
             const active = path === href || (href !== "/admin" && path.startsWith(href))
@@ -110,13 +84,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        {/* Bottom actions */}
+        {/* Bottom */}
         <div style={{ borderTop: "1px solid #1e1e1e" }}>
           <Link href="/" style={{
             display: "flex", alignItems: "center", gap: ".75rem",
             padding: ".85rem 1.5rem", color: "#444",
             textDecoration: "none", fontSize: ".75rem", fontWeight: 700,
-            letterSpacing: 1, textTransform: "uppercase", transition: "color .15s",
+            letterSpacing: 1, textTransform: "uppercase",
           }}
             onMouseEnter={e => (e.currentTarget.style.color = "#888")}
             onMouseLeave={e => (e.currentTarget.style.color = "#444")}
@@ -125,30 +99,25 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             <span>Back to Store</span>
           </Link>
           <div style={{ margin: "0 1.5rem", borderTop: "1px solid #111" }} />
-          <button
-            onClick={handleLogout}
-            disabled={loggingOut}
-            style={{
-              display: "flex", alignItems: "center", gap: ".75rem",
-              width: "100%", padding: ".85rem 1.5rem",
-              color: loggingOut ? "#555" : "#e5202e",
-              background: "none", border: "none", cursor: loggingOut ? "not-allowed" : "pointer",
-              fontSize: ".75rem", fontWeight: 800, letterSpacing: 1.5,
-              textTransform: "uppercase", transition: "background .15s",
-              fontFamily: "'Barlow', sans-serif",
-            }}
-            onMouseEnter={e => { if (!loggingOut) (e.currentTarget as HTMLElement).style.background = "rgba(229,32,46,.08)" }}
+          <button onClick={handleLogout} style={{
+            display: "flex", alignItems: "center", gap: ".75rem",
+            width: "100%", padding: ".85rem 1.5rem",
+            color: "#e5202e", background: "none", border: "none", cursor: "pointer",
+            fontSize: ".75rem", fontWeight: 800, letterSpacing: 1.5,
+            textTransform: "uppercase", fontFamily: "'Barlow', sans-serif",
+          }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(229,32,46,.08)" }}
             onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "none"}
           >
             <span style={{ fontSize: "1rem" }}>⏻</span>
-            <span>{loggingOut ? "Logging out…" : "Logout"}</span>
+            <span>Logout</span>
           </button>
         </div>
       </aside>
 
-      {/* ── Main content ── */}
+      {/* Main */}
       <main style={{ flex: 1, overflow: "auto", padding: "2rem 2.5rem" }}>
-        {currentPathAllowed ? children : (
+        {allowed ? children : (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", textAlign: "center" }}>
             <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🚫</div>
             <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "2rem", letterSpacing: 3, color: "#e5202e", marginBottom: ".5rem" }}>ACCESS DENIED</h2>
@@ -162,5 +131,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         )}
       </main>
     </div>
+  )
+}
+
+export default function AdminLayout({ children }: { children: ReactNode }) {
+  return (
+    <AdminSessionProvider>
+      <AdminLayoutInner>{children}</AdminLayoutInner>
+    </AdminSessionProvider>
   )
 }

@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 
 const INP: React.CSSProperties = {
   width: "100%", background: "#0d0d0d", border: "1px solid #1e1e1e",
@@ -15,15 +15,19 @@ const LABEL: React.CSSProperties = {
   letterSpacing: 2, textTransform: "uppercase", color: "#666", marginBottom: ".5rem",
 }
 
-export default function SignInPage() {
+function SignInContent() {
   const router = useRouter()
-  const [mode, setMode]     = useState<"signin" | "register">("signin")
-  const [step, setStep]     = useState<"email" | "verify">("email")
-  const [email, setEmail]   = useState("")
-  const [name, setName]     = useState("")
-  const [otp, setOtp]       = useState("")
+  const params = useSearchParams()
+  const redirectTo = params.get("redirect") || "/"
+
+  const [mode, setMode]       = useState<"signin" | "register">("signin")
+  const [step, setStep]       = useState<"email" | "verify">("email")
+  const [email, setEmail]     = useState("")
+  const [name, setName]       = useState("")
+  const [otp, setOtp]         = useState("")
   const [loading, setLoading] = useState(false)
-  const [error, setError]   = useState("")
+  const [error, setError]     = useState("")
+
   async function sendOtp() {
     if (!email) return setError("Please enter your email.")
     if (mode === "register" && !name) return setError("Please enter your name.")
@@ -58,7 +62,7 @@ export default function SignInPage() {
       const j = await res.json()
       if (j.success) {
         localStorage.setItem("trident_customer", JSON.stringify(j.data))
-        router.push("/")
+        router.push(redirectTo)
       } else {
         setError(j.error || "Invalid OTP.")
       }
@@ -104,7 +108,8 @@ export default function SignInPage() {
               {mode === "register" && (
                 <div style={{ marginBottom: "1rem" }}>
                   <label style={LABEL}>Full Name</label>
-                  <input style={INP} placeholder="John Doe" value={name} onChange={e => setName(e.target.value)} onFocus={e => (e.target.style.borderColor = "#333")} onBlur={e => (e.target.style.borderColor = "#1e1e1e")} />
+                  <input style={INP} placeholder="John Doe" value={name} onChange={e => setName(e.target.value)}
+                    onFocus={e => (e.target.style.borderColor = "#333")} onBlur={e => (e.target.style.borderColor = "#1e1e1e")} />
                 </div>
               )}
               <div style={{ marginBottom: "1.5rem" }}>
@@ -125,8 +130,7 @@ export default function SignInPage() {
                 <label style={LABEL}>Enter OTP</label>
                 <input style={{ ...INP, fontSize: "1.5rem", letterSpacing: "1rem", textAlign: "center", fontFamily: "'Bebas Neue', sans-serif" }}
                   placeholder="------" maxLength={6} value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ""))}
-                  onKeyDown={e => e.key === "Enter" && verifyOtp()}
-                />
+                  onKeyDown={e => e.key === "Enter" && verifyOtp()} />
               </div>
               {error && <div style={{ color: "#e5202e", fontSize: ".82rem", fontWeight: 600, marginBottom: "1rem" }}>{error}</div>}
               <button onClick={verifyOtp} disabled={loading}
@@ -151,7 +155,7 @@ export default function SignInPage() {
         </div>
       </div>
 
-      {/* Right panel — visual */}
+      {/* Right panel */}
       <div style={{ width: 480, background: "#0d0d0d", borderLeft: "1px solid #1e1e1e", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "3rem", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,.02) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,.02) 40px)" }} />
         <div style={{ position: "relative", zIndex: 1, textAlign: "center" }}>
@@ -172,5 +176,13 @@ export default function SignInPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense>
+      <SignInContent />
+    </Suspense>
   )
 }

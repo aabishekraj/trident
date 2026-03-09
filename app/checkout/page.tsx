@@ -42,14 +42,17 @@ export default function CheckoutPage() {
   })
 
   useEffect(() => {
+    // Auth guard — must be signed in to checkout
+    const cust = localStorage.getItem("trident_customer")
+    if (!cust) {
+      router.replace("/signin?redirect=/checkout")
+      return
+    }
+    const c = JSON.parse(cust)
+    setForm(f => ({ ...f, name: c.name || "", email: c.email || "" }))
+
     const saved = sessionStorage.getItem("trident_cart")
     if (saved) setCart(JSON.parse(saved))
-    // Pre-fill from customer session
-    const cust = localStorage.getItem("trident_customer")
-    if (cust) {
-      const c = JSON.parse(cust)
-      setForm(f => ({ ...f, name: c.name || "", email: c.email || "" }))
-    }
   }, [])
 
   const subtotal  = cart.reduce((s, i) => s + finalPrice(i) * i.qty, 0)

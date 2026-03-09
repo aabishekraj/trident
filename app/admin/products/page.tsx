@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useRef } from "react"
 import Image from "next/image"
+import { useAdminSession } from "@/context/AdminSessionContext"
+import { ROLE_PERMISSIONS } from "@/lib/roles"
 
 type StockStatus = "active" | "sold_out" | "coming_soon"
 type Product = {
@@ -29,6 +31,13 @@ const LBL: React.CSSProperties = { display: "block", fontSize: ".68rem", fontWei
 const EMPTY: Omit<Product, "_id"> = { name: "", description: "", price: 0, category: CATEGORIES[0], tag: "", sizes: [], image: "", stockStatus: "active", active: true }
 
 export default function AdminProductsPage() {
+  const session  = useAdminSession()
+  const perms    = ROLE_PERMISSIONS[session?.role ?? "analyst"]?.products
+  const canCreate    = perms?.create ?? false
+  const canEdit      = perms?.edit   ?? false
+  const canDelete    = perms?.delete ?? false
+  const canBulkImport = perms?.bulkImport ?? false
+
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading]   = useState(true)
   const [modal, setModal]       = useState(false)
@@ -181,14 +190,20 @@ export default function AdminProductsPage() {
             style={{ background: "transparent", color: "#555", border: "1px solid #1e1e1e", padding: ".55rem 1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".72rem", letterSpacing: 1.5, textTransform: "uppercase", cursor: "pointer" }}>
             CSV TEMPLATE
           </button>
-          <button onClick={() => csvFileRef.current?.click()} disabled={bulkUploading}
-            style={{ background: bulkUploading ? "#333" : "transparent", color: bulkUploading ? "#666" : "#e5202e", border: "1px solid #e5202e", padding: ".55rem 1.1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".72rem", letterSpacing: 1.5, textTransform: "uppercase", cursor: bulkUploading ? "not-allowed" : "pointer" }}>
-            {bulkUploading ? "IMPORTING…" : "⬆ BULK IMPORT"}
-          </button>
-          <input ref={csvFileRef} type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleCsvUpload(f) }} />
-          <button onClick={openAdd} style={{ background: "#e5202e", color: "#fff", border: "none", padding: ".55rem 1.3rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", cursor: "pointer" }}>
-            + ADD PRODUCT
-          </button>
+          {canBulkImport && (
+            <>
+              <button onClick={() => csvFileRef.current?.click()} disabled={bulkUploading}
+                style={{ background: bulkUploading ? "#333" : "transparent", color: bulkUploading ? "#666" : "#e5202e", border: "1px solid #e5202e", padding: ".55rem 1.1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".72rem", letterSpacing: 1.5, textTransform: "uppercase", cursor: bulkUploading ? "not-allowed" : "pointer" }}>
+                {bulkUploading ? "IMPORTING…" : "⬆ BULK IMPORT"}
+              </button>
+              <input ref={csvFileRef} type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleCsvUpload(f) }} />
+            </>
+          )}
+          {canCreate && (
+            <button onClick={openAdd} style={{ background: "#e5202e", color: "#fff", border: "none", padding: ".55rem 1.3rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", cursor: "pointer" }}>
+              + ADD PRODUCT
+            </button>
+          )}
         </div>
       </div>
 
@@ -241,26 +256,34 @@ export default function AdminProductsPage() {
                     {p.sizes.map(s => <span key={s} style={{ border: "1px solid #1e1e1e", color: "#555", fontSize: ".62rem", fontWeight: 700, padding: ".15rem .4rem" }}>{s}</span>)}
                   </div>
                 )}
-                {/* Status quick-change */}
-                <div style={{ display: "flex", gap: ".4rem", marginBottom: ".75rem", flexWrap: "wrap" }}>
-                  {(["active","sold_out","coming_soon"] as StockStatus[]).map(st => (
-                    <button key={st} onClick={() => quickStatus(p._id, st)}
-                      style={{ padding: ".25rem .6rem", fontSize: ".62rem", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", border: "none", cursor: "pointer", background: p.stockStatus === st ? (st === "active" ? "rgba(34,197,94,.2)" : st === "sold_out" ? "rgba(229,32,46,.2)" : "rgba(234,179,8,.2)") : "#111", color: p.stockStatus === st ? (st === "active" ? "#22c55e" : st === "sold_out" ? "#e5202e" : "#eab308") : "#555" }}>
-                      {st.replace("_", " ")}
-                    </button>
-                  ))}
-                </div>
+                {/* Status quick-change — edit permission required */}
+                {canEdit && (
+                  <div style={{ display: "flex", gap: ".4rem", marginBottom: ".75rem", flexWrap: "wrap" }}>
+                    {(["active","sold_out","coming_soon"] as StockStatus[]).map(st => (
+                      <button key={st} onClick={() => quickStatus(p._id, st)}
+                        style={{ padding: ".25rem .6rem", fontSize: ".62rem", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", border: "none", cursor: "pointer", background: p.stockStatus === st ? (st === "active" ? "rgba(34,197,94,.2)" : st === "sold_out" ? "rgba(229,32,46,.2)" : "rgba(234,179,8,.2)") : "#111", color: p.stockStatus === st ? (st === "active" ? "#22c55e" : st === "sold_out" ? "#e5202e" : "#eab308") : "#555" }}>
+                        {st.replace("_", " ")}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {/* Actions */}
-                <div style={{ display: "flex", gap: ".5rem" }}>
-                  <button onClick={() => openEdit(p)}
-                    style={{ flex: 1, background: "rgba(59,130,246,.15)", color: "#3b82f6", border: "none", padding: ".4rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".72rem", letterSpacing: 1, textTransform: "uppercase", cursor: "pointer" }}>
-                    EDIT
-                  </button>
-                  <button onClick={() => deleteProduct(p._id, p.name)}
-                    style={{ flex: 1, background: "rgba(229,32,46,.12)", color: "#e5202e", border: "none", padding: ".4rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".72rem", letterSpacing: 1, textTransform: "uppercase", cursor: "pointer" }}>
-                    DELETE
-                  </button>
-                </div>
+                {(canEdit || canDelete) && (
+                  <div style={{ display: "flex", gap: ".5rem" }}>
+                    {canEdit && (
+                      <button onClick={() => openEdit(p)}
+                        style={{ flex: 1, background: "rgba(59,130,246,.15)", color: "#3b82f6", border: "none", padding: ".4rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".72rem", letterSpacing: 1, textTransform: "uppercase", cursor: "pointer" }}>
+                        EDIT
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button onClick={() => deleteProduct(p._id, p.name)}
+                        style={{ flex: 1, background: "rgba(229,32,46,.12)", color: "#e5202e", border: "none", padding: ".4rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".72rem", letterSpacing: 1, textTransform: "uppercase", cursor: "pointer" }}>
+                        DELETE
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))}

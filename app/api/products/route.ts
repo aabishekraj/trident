@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { connectDB } from "@/lib/mongodb"
 import Product from "@/models/Product"
+import { checkPermission } from "@/lib/adminAuth"
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,8 +10,12 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get("category") || ""
     const status   = searchParams.get("status") || ""
     const filter: Record<string, unknown> = {}
-    if (category) filter.category = { $regex: category, $options: "i" }
-    if (status)   filter.stockStatus = status
+    // Escape user input to prevent ReDoS via malicious regex patterns
+    if (category) {
+      const safe = category.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").slice(0, 100)
+      filter.category = { $regex: safe, $options: "i" }
+    }
+    if (status) filter.stockStatus = status
     const products = await Product.find(filter).sort({ createdAt: -1 }).lean()
     return NextResponse.json(products)
   } catch (e) {
@@ -19,6 +24,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = checkPermission(req, "products", "create")
+  if (denied) return NextResponse.json({ success: false, error: denied.error }, { status: denied.status })
+
   try {
     await connectDB()
     const body = await req.json()

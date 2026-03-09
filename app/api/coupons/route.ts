@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { connectDB } from "@/lib/mongodb"
 import Coupon from "@/models/Coupon"
+import { checkPermission } from "@/lib/adminAuth"
 
 export async function GET() {
   try {
@@ -13,6 +14,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = checkPermission(req, "coupons", "create")
+  if (denied) return NextResponse.json({ success: false, error: denied.error }, { status: denied.status })
+
   try {
     await connectDB()
     const body = await req.json()

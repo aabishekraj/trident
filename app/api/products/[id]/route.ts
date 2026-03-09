@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { connectDB } from "@/lib/mongodb"
 import Product from "@/models/Product"
+import { checkPermission } from "@/lib/adminAuth"
 
 type P = { params: Promise<{ id: string }> }
 
@@ -17,6 +18,9 @@ export async function GET(_: NextRequest, { params }: P) {
 }
 
 export async function PUT(req: NextRequest, { params }: P) {
+  const denied = checkPermission(req, "products", "edit")
+  if (denied) return NextResponse.json({ success: false, error: denied.error }, { status: denied.status })
+
   try {
     await connectDB()
     const { id } = await params
@@ -29,7 +33,10 @@ export async function PUT(req: NextRequest, { params }: P) {
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: P) {
+export async function DELETE(req: NextRequest, { params }: P) {
+  const denied = checkPermission(req, "products", "delete")
+  if (denied) return NextResponse.json({ success: false, error: denied.error }, { status: denied.status })
+
   try {
     await connectDB()
     const { id } = await params

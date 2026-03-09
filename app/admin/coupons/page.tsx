@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useAdminSession } from "@/context/AdminSessionContext"
+import { ROLE_PERMISSIONS } from "@/lib/roles"
 
 type CouponScope = "all" | "category" | "products"
 type Coupon = {
@@ -22,6 +24,12 @@ const EMPTY: Omit<Coupon,"_id"|"usedCount"> = {
 }
 
 export default function AdminCouponsPage() {
+  const session   = useAdminSession()
+  const perms     = ROLE_PERMISSIONS[session?.role ?? "analyst"]?.coupons
+  const canCreate = perms?.create ?? false
+  const canEdit   = perms?.edit   ?? false
+  const canDelete = perms?.delete ?? false
+
   const [coupons, setCoupons]   = useState<Coupon[]>([])
   const [loading, setLoading]   = useState(true)
   const [modal, setModal]       = useState(false)
@@ -97,9 +105,11 @@ export default function AdminCouponsPage() {
         <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "2rem", letterSpacing: 2 }}>
           COU<span style={{ color: "#e5202e" }}>PONS</span>
         </h1>
-        <button onClick={openAdd} style={{ background: "#e5202e", color: "#fff", border: "none", padding: ".55rem 1.3rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", cursor: "pointer" }}>
-          + CREATE COUPON
-        </button>
+        {canCreate && (
+          <button onClick={openAdd} style={{ background: "#e5202e", color: "#fff", border: "none", padding: ".55rem 1.3rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", cursor: "pointer" }}>
+            + CREATE COUPON
+          </button>
+        )}
       </div>
 
       {/* Stats */}
@@ -169,11 +179,18 @@ export default function AdminCouponsPage() {
                     </td>
                     <td style={{ padding: ".9rem 1.2rem" }}>
                       <div style={{ display: "flex", gap: ".4rem" }}>
-                        <button onClick={() => openEdit(c)} style={{ background: "rgba(59,130,246,.15)", color: "#3b82f6", border: "none", padding: ".3rem .65rem", fontSize: ".68rem", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", cursor: "pointer" }}>EDIT</button>
-                        <button onClick={() => toggleActive(c)} style={{ background: c.active ? "rgba(234,179,8,.15)" : "rgba(34,197,94,.15)", color: c.active ? "#eab308" : "#22c55e", border: "none", padding: ".3rem .65rem", fontSize: ".68rem", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", cursor: "pointer" }}>
-                          {c.active ? "PAUSE" : "ENABLE"}
-                        </button>
-                        <button onClick={() => deleteCoupon(c._id, c.code)} style={{ background: "rgba(229,32,46,.12)", color: "#e5202e", border: "none", padding: ".3rem .65rem", fontSize: ".68rem", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", cursor: "pointer" }}>DEL</button>
+                        {canEdit && (
+                          <button onClick={() => openEdit(c)} style={{ background: "rgba(59,130,246,.15)", color: "#3b82f6", border: "none", padding: ".3rem .65rem", fontSize: ".68rem", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", cursor: "pointer" }}>EDIT</button>
+                        )}
+                        {canEdit && (
+                          <button onClick={() => toggleActive(c)} style={{ background: c.active ? "rgba(234,179,8,.15)" : "rgba(34,197,94,.15)", color: c.active ? "#eab308" : "#22c55e", border: "none", padding: ".3rem .65rem", fontSize: ".68rem", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", cursor: "pointer" }}>
+                            {c.active ? "PAUSE" : "ENABLE"}
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button onClick={() => deleteCoupon(c._id, c.code)} style={{ background: "rgba(229,32,46,.12)", color: "#e5202e", border: "none", padding: ".3rem .65rem", fontSize: ".68rem", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", cursor: "pointer" }}>DEL</button>
+                        )}
+                        {!canEdit && !canDelete && <span style={{ color: "#444", fontSize: ".7rem" }}>View only</span>}
                       </div>
                     </td>
                   </tr>
