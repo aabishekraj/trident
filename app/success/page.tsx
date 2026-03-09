@@ -52,7 +52,7 @@ function SuccessContent() {
         </div>
 
         <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
-          <Link href="/account/orders" style={{ background: "#e5202e", color: "#fff", padding: ".85rem 2rem", fontWeight: 800, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none" }}>
+          <Link href={orderId ? `/track?id=${orderId}` : "/track"} style={{ background: "#e5202e", color: "#fff", padding: ".85rem 2rem", fontWeight: 800, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none" }}>
             TRACK ORDER
           </Link>
           <Link href="/" style={{ border: "1px solid #222", color: "#888", padding: ".85rem 2rem", fontWeight: 700, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none" }}>

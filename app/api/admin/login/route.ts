@@ -6,9 +6,13 @@ const ADMIN_USER = process.env.ADMIN_USERNAME ?? "admin"
 const ADMIN_PASS = process.env.ADMIN_PASSWORD ?? "trident2026"
 
 function setCookie(res: NextResponse, value: string) {
+  // Only use secure=true when the site is actually on HTTPS.
+  // NODE_ENV=production alone is not enough — HTTP deployments would have the
+  // browser silently reject Set-Cookie with secure=true, so the cookie is never saved.
+  const isHttps = (process.env.NEXT_PUBLIC_SITE_URL ?? "").startsWith("https://")
   res.cookies.set("trident_admin_session", value, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: isHttps,
     sameSite: "lax",
     maxAge: 60 * 60 * 24 * 7,
     path: "/",
