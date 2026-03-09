@@ -33,6 +33,7 @@ export default function CheckoutPage() {
   const [step, setStep]       = useState<"details" | "payment" | "confirm">("details")
   const [placing, setPlacing] = useState(false)
   const [orderId, setOrderId] = useState("")
+  const [orderError, setOrderError] = useState("")
 
   const [form, setForm] = useState({
     name: "", email: "", phone: "", address: "", city: "", state: "", zip: "", country: "India",
@@ -65,14 +66,20 @@ export default function CheckoutPage() {
   async function placeOrder() {
     if (!form.name || !form.email || !form.address) return
     setPlacing(true)
+    setOrderError("")
+
+    // 12-second hard timeout so the UI never freezes
+    const controller = new AbortController()
+    const timeoutId  = setTimeout(() => controller.abort(), 12000)
+
     try {
       const shippingAddress = `${form.address}, ${form.city}, ${form.state} ${form.zip}, ${form.country}`
 
       if (form.paymentMethod === "card") {
-        // Redirect to Stripe Checkout — order is pre-created server-side
         const res = await fetch("/api/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
           body: JSON.stringify({
             cart: cart.map(i => ({ ...i, price: finalPrice(i) })),
             customer: { name: form.name, email: form.email, phone: form.phone },
@@ -82,22 +89,22 @@ export default function CheckoutPage() {
         const j = await res.json()
         if (j.url) {
           sessionStorage.removeItem("trident_cart")
-          window.location.href = j.url   // redirect to Stripe hosted checkout
+          window.location.href = j.url
           return
-        } else {
-          alert(j.error || "Payment failed. Please try again.")
         }
+        setOrderError(j.error || "Payment could not be initiated. Please try again.")
       } else {
         // COD or UPI — create order directly
         const res = await fetch("/api/orders", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
           body: JSON.stringify({
             customer: { name: form.name, email: form.email, phone: form.phone, address: shippingAddress },
             items: cart.map(i => ({ productId: i._id, name: i.name, price: finalPrice(i), qty: i.qty, size: i.selectedSize })),
             totalAmount: total,
             paymentMethod: form.paymentMethod,
-            paymentStatus: form.paymentMethod === "cod" ? "pending" : "pending",
+            paymentStatus: "pending",
             status: "pending",
           }),
         })
@@ -106,15 +113,20 @@ export default function CheckoutPage() {
           setOrderId(j.data.orderId)
           sessionStorage.removeItem("trident_cart")
           setStep("confirm")
-        } else {
-          alert(j.error || "Failed to place order.")
+          return
         }
+        setOrderError(j.error || "Failed to place order. Please try again.")
       }
-    } catch (e) {
+    } catch (e: unknown) {
       console.error(e)
-      alert("Something went wrong. Please try again.")
+      const isTimeout = e instanceof Error && (e.name === "AbortError" || e.message.includes("timeout"))
+      setOrderError(isTimeout
+        ? "Request timed out — our servers may be busy. Please try again in a moment."
+        : "Something went wrong. Please check your connection and try again.")
+    } finally {
+      clearTimeout(timeoutId)
+      setPlacing(false)
     }
-    setPlacing(false)
   }
 
   if (step === "confirm") return (
@@ -237,8 +249,13 @@ export default function CheckoutPage() {
                 </div>
               )}
 
+              {orderError && (
+                <div style={{ background: "rgba(229,32,46,.1)", border: "1px solid rgba(229,32,46,.3)", padding: ".85rem 1rem", color: "#e5202e", fontSize: ".82rem", fontWeight: 600, lineHeight: 1.5, marginTop: "1.5rem" }}>
+                  ⚠ {orderError}
+                </div>
+              )}
               <button onClick={placeOrder} disabled={placing}
-                style={{ width: "100%", background: placing ? "#555" : "#e5202e", color: "#fff", border: "none", padding: "1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".85rem", letterSpacing: 2, textTransform: "uppercase", cursor: placing ? "not-allowed" : "pointer", marginTop: "2rem" }}>
+                style={{ width: "100%", background: placing ? "#555" : "#e5202e", color: "#fff", border: "none", padding: "1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".85rem", letterSpacing: 2, textTransform: "uppercase", cursor: placing ? "not-allowed" : "pointer", marginTop: "1rem" }}>
                 {placing ? "PLACING ORDER…" : `PLACE ORDER — $${total}`}
               </button>
               <p style={{ textAlign: "center", color: "#444", fontSize: ".75rem", marginTop: ".75rem" }}>🔒 SSL encrypted. Your payment info is safe.</p>
