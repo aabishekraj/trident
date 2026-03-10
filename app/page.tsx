@@ -54,21 +54,12 @@ const NAV_ITEMS = [
   },
   {
     label: "New Arrivals",
-    href: "/collection/new",
+    href: "/collection/tag/NEW",
     dropdown: [
-      { label: "Just Dropped",   href: "/collection/new" },
-      { label: "SS 2026",        href: "/collection/men" },
-      { label: "Limited Edition",href: "/collection/men" },
-    ],
-  },
-  {
-    label: "Collections",
-    href: "/collection/men",
-    dropdown: [
-      { label: "Men",            href: "/collection/men" },
-      { label: "Women",          href: "/collection/women" },
-      { label: "Kids",           href: "/collection/kids" },
-      { label: "Unisex",         href: "/collection/unisex" },
+      { label: "NEW",       href: "/collection/tag/NEW"       },
+      { label: "HOT",       href: "/collection/tag/HOT"       },
+      { label: "LIMITED",   href: "/collection/tag/LIMITED"   },
+      { label: "EXCLUSIVE", href: "/collection/tag/EXCLUSIVE" },
     ],
   },
 ]
@@ -96,7 +87,7 @@ function finalPrice(p: Product) {
 // ─────────────────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const router = useRouter()
-  const [products, setProducts]   = useState<Product[]>(FALLBACK)
+  const [products, setProducts]   = useState<Product[]>([])
   const [cart, setCart]           = useState<CartItem[]>([])
   const [cartOpen, setCartOpen]   = useState(false)
   const [couponCode, setCouponCode] = useState("")
@@ -112,11 +103,11 @@ export default function HomePage() {
     if (saved) setCustomer(JSON.parse(saved))
   }, [])
 
-  // Fetch products
+  // Fetch featured products (admin-curated, max 10)
   useEffect(() => {
-    fetch("/api/products")
+    fetch("/api/products?featured=true&limit=10")
       .then(r => r.json())
-      .then(d => { if (Array.isArray(d) && d.length) setProducts([...d, ...FALLBACK]) })
+      .then(d => { if (Array.isArray(d) && d.length) setProducts(d) })
       .catch(() => {})
   }, [])
 
@@ -258,6 +249,7 @@ export default function HomePage() {
                   { label: "My Orders",   href: "/account/orders"  },
                   { label: "Account",     href: "/account" },
                   { label: "Wishlist",    href: "/account/wishlist" },
+                  { label: "Support",     href: "/support" },
                 ].map(item => (
                   <Link key={item.href} href={item.href} style={{ display: "block", padding: ".65rem 1.2rem", color: "#888", fontSize: ".8rem", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", textDecoration: "none", transition: "all .15s", borderLeft: "2px solid transparent" }}
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#f5f5f5"; (e.currentTarget as HTMLElement).style.borderLeftColor = "#e5202e"; (e.currentTarget as HTMLElement).style.paddingLeft = "1.5rem" }}
@@ -361,16 +353,27 @@ export default function HomePage() {
           <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(2.5rem,5vw,4rem)", letterSpacing: 2 }}>
             FEATURED<br /><span style={{ color: "#e5202e" }}>DROPS</span>
           </h2>
-          <span style={{ color: "#555", fontSize: ".82rem", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", cursor: "pointer", transition: "color .2s" }}
+          <Link href="/collection/men" style={{ color: "#555", fontSize: ".82rem", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", textDecoration: "none", transition: "color .2s" }}
             onMouseEnter={e => (e.currentTarget.style.color = "#f5f5f5")}
             onMouseLeave={e => (e.currentTarget.style.color = "#555")}>
             View All →
-          </span>
+          </Link>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: "1.5px", background: "#1e1e1e" }}>
-          {products.map((p, i) => <ProductCard key={p._id} product={p} index={i} onAdd={() => openSizeModal(p)} />)}
-        </div>
+        {products.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "5rem 2rem", border: "1px solid #1e1e1e", color: "#444" }}>
+            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>⭐</div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.5rem", letterSpacing: 2, marginBottom: ".5rem", color: "#555" }}>NO FEATURED PRODUCTS YET</div>
+            <p style={{ fontSize: ".82rem", lineHeight: 1.6, marginBottom: "1.5rem" }}>Browse our full collection while we curate featured drops.</p>
+            <Link href="/collection/men" style={{ display: "inline-block", background: "#e5202e", color: "#fff", padding: ".75rem 2.5rem", fontWeight: 800, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none" }}>
+              EXPLORE COLLECTION →
+            </Link>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: "1.5px", background: "#1e1e1e" }}>
+            {products.map((p, i) => <ProductCard key={p._id} product={p} index={i} onAdd={() => openSizeModal(p)} />)}
+          </div>
+        )}
       </section>
 
       {/* ══ SIZE MODAL ════════════════════════════════════════════════════════ */}

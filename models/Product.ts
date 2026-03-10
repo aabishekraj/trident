@@ -4,7 +4,7 @@ export interface ProductDocument extends Document {
   name: string; description: string; price: number
   category: string; tag?: string; sizes: string[]
   image: string; stockStatus: "active" | "sold_out" | "coming_soon"
-  active: boolean; couponCode?: string; couponDiscount?: number
+  active: boolean; featured: boolean; couponCode?: string; couponDiscount?: number
 }
 
 const ProductSchema = new Schema<ProductDocument>({
@@ -17,12 +17,15 @@ const ProductSchema = new Schema<ProductDocument>({
   image:       { type: String, default: "" },
   stockStatus: { type: String, enum: ["active","sold_out","coming_soon"], default: "active" },
   active:      { type: Boolean, default: true },
+  featured:    { type: Boolean, default: false },
   couponCode:  { type: String, default: "" },
   couponDiscount: { type: Number, default: 0 },
 }, { timestamps: true, toJSON: { virtuals: true } })
 
 ProductSchema.index({ category: 1 })
 ProductSchema.index({ stockStatus: 1 })
+ProductSchema.index({ featured: 1 })
+ProductSchema.index({ tag: 1 })
 
 const Product: Model<ProductDocument> = mongoose.models.Product || mongoose.model("Product", ProductSchema)
 export default Product

@@ -9,7 +9,7 @@ type StockStatus = "active" | "sold_out" | "coming_soon"
 type Product = {
   _id: string; name: string; description: string; price: number
   category: string; tag: string; sizes: string[]; image: string
-  stockStatus: StockStatus; active: boolean
+  stockStatus: StockStatus; active: boolean; featured?: boolean
 }
 
 const CATEGORIES = [
@@ -28,7 +28,7 @@ const TAGS = ["", "NEW", "HOT", "SALE", "EXCLUSIVE", "LIMITED", "BESTSELLER"]
 const INP: React.CSSProperties = { width: "100%", background: "#0a0a0a", border: "1px solid #1e1e1e", color: "#f5f5f5", padding: ".7rem 1rem", fontFamily: "'Barlow', sans-serif", fontSize: ".88rem", outline: "none" }
 const LBL: React.CSSProperties = { display: "block", fontSize: ".68rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#666", marginBottom: ".4rem" }
 
-const EMPTY: Omit<Product, "_id"> = { name: "", description: "", price: 0, category: CATEGORIES[0], tag: "", sizes: [], image: "", stockStatus: "active", active: true }
+const EMPTY: Omit<Product, "_id"> = { name: "", description: "", price: 0, category: CATEGORIES[0], tag: "", sizes: [], image: "", stockStatus: "active", active: true, featured: false }
 
 export default function AdminProductsPage() {
   const session  = useAdminSession()
@@ -43,11 +43,13 @@ export default function AdminProductsPage() {
   const [modal, setModal]       = useState(false)
   const [editing, setEditing]   = useState<Product | null>(null)
   const [form, setForm]         = useState<Omit<Product,"_id">>(EMPTY)
-  const [saving, setSaving]     = useState(false)
-  const [toast, setToast]       = useState<{msg:string;ok:boolean}|null>(null)
-  const [search, setSearch]     = useState("")
+  const [saving, setSaving]         = useState(false)
+  const [toast, setToast]           = useState<{msg:string;ok:boolean}|null>(null)
+  const [search, setSearch]         = useState("")
   const [filterStatus, setFilterStatus] = useState("")
   const [bulkUploading, setBulkUploading] = useState(false)
+  const [selected, setSelected]     = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
   const fileRef    = useRef<HTMLInputElement>(null)
   const csvFileRef = useRef<HTMLInputElement>(null)
 
@@ -64,7 +66,33 @@ export default function AdminProductsPage() {
   }
 
   function openAdd()  { setEditing(null); setForm(EMPTY); setModal(true) }
-  function openEdit(p: Product) { setEditing(p); setForm({ name: p.name, description: p.description, price: p.price, category: p.category, tag: p.tag || "", sizes: p.sizes || [], image: p.image || "", stockStatus: p.stockStatus || "active", active: p.active !== false }); setModal(true) }
+  function openEdit(p: Product) { setEditing(p); setForm({ name: p.name, description: p.description, price: p.price, category: p.category, tag: p.tag || "", sizes: p.sizes || [], image: p.image || "", stockStatus: p.stockStatus || "active", active: p.active !== false, featured: p.featured || false }); setModal(true) }
+
+  function toggleSelect(id: string) {
+    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+  function selectAll()   { setSelected(new Set(filtered.map(p => p._id))) }
+  function deselectAll() { setSelected(new Set()) }
+
+  async function bulkDelete() {
+    if (!selected.size || !confirm(`Delete ${selected.size} selected product${selected.size > 1 ? "s" : ""}? This cannot be undone.`)) return
+    setBulkDeleting(true)
+    try {
+      const r = await fetch("/api/products/bulk-delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: Array.from(selected) }) })
+      const j = await r.json()
+      if (j.success) { showToast(`Deleted ${j.deleted} products.`); setSelected(new Set()); load() }
+      else showToast(j.error || "Failed.", false)
+    } catch { showToast("Error.", false) }
+    setBulkDeleting(false)
+  }
+
+  async function quickFeatured(id: string, featured: boolean) {
+    try {
+      await fetch(`/api/products/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ featured }) })
+      setProducts(prev => prev.map(p => p._id === id ? { ...p, featured } : p))
+      showToast(featured ? "📌 Pinned to homepage!" : "Unpinned from homepage.")
+    } catch { showToast("Failed.", false) }
+  }
 
   function setF(k: string, v: unknown) { setForm(f => ({ ...f, [k]: v })) }
 
@@ -207,8 +235,8 @@ export default function AdminProductsPage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div style={{ display: "flex", gap: ".75rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
+      {/* Filters + bulk actions */}
+      <div style={{ display: "flex", gap: ".75rem", marginBottom: "1.5rem", flexWrap: "wrap", alignItems: "center" }}>
         <input placeholder="Search products…" value={search} onChange={e => setSearch(e.target.value)}
           style={{ ...INP, width: 240, padding: ".55rem 1rem" }} />
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
@@ -218,7 +246,27 @@ export default function AdminProductsPage() {
           <option value="sold_out">Sold Out</option>
           <option value="coming_soon">Coming Soon</option>
         </select>
-        <div style={{ color: "#555", fontSize: ".82rem", alignSelf: "center" }}>{filtered.length} products</div>
+        <div style={{ color: "#555", fontSize: ".82rem" }}>{filtered.length} products</div>
+
+        {/* Bulk selection controls */}
+        {canDelete && filtered.length > 0 && (
+          <div style={{ display: "flex", gap: ".5rem", marginLeft: "auto", alignItems: "center" }}>
+            {selected.size > 0 && (
+              <>
+                <span style={{ fontSize: ".75rem", color: "#888", fontWeight: 700 }}>{selected.size} selected</span>
+                <button onClick={deselectAll} style={{ background: "transparent", border: "1px solid #333", color: "#666", padding: ".35rem .75rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".7rem", letterSpacing: 1, textTransform: "uppercase", cursor: "pointer" }}>CLEAR</button>
+                <button onClick={bulkDelete} disabled={bulkDeleting}
+                  style={{ background: bulkDeleting ? "#333" : "rgba(229,32,46,.15)", border: "1px solid #e5202e", color: "#e5202e", padding: ".35rem 1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".7rem", letterSpacing: 1, textTransform: "uppercase", cursor: bulkDeleting ? "not-allowed" : "pointer" }}>
+                  {bulkDeleting ? "DELETING…" : `🗑 DELETE ${selected.size}`}
+                </button>
+              </>
+            )}
+            <button onClick={selected.size === filtered.length ? deselectAll : selectAll}
+              style={{ background: "transparent", border: "1px solid #1e1e1e", color: "#555", padding: ".35rem .75rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".7rem", letterSpacing: 1, textTransform: "uppercase", cursor: "pointer" }}>
+              {selected.size === filtered.length && filtered.length > 0 ? "✓ ALL" : "SELECT ALL"}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Products grid */}
@@ -227,7 +275,19 @@ export default function AdminProductsPage() {
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: "1px", background: "#1e1e1e" }}>
           {filtered.map(p => (
-            <div key={p._id} style={{ background: "#0d0d0d", overflow: "hidden" }}>
+            <div key={p._id} style={{ background: "#0d0d0d", overflow: "hidden", outline: selected.has(p._id) ? "2px solid #e5202e" : p.featured ? "2px solid #eab308" : "none", position: "relative" }}>
+              {/* Checkbox (top-left) */}
+              {canDelete && (
+                <div onClick={() => toggleSelect(p._id)} style={{ position: "absolute", top: "0.6rem", left: "0.6rem", zIndex: 10, cursor: "pointer" }}>
+                  <div style={{ width: 20, height: 20, background: selected.has(p._id) ? "#e5202e" : "rgba(0,0,0,.7)", border: `2px solid ${selected.has(p._id) ? "#e5202e" : "#555"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".7rem", color: "#fff", fontWeight: 900 }}>
+                    {selected.has(p._id) ? "✓" : ""}
+                  </div>
+                </div>
+              )}
+              {/* Featured badge */}
+              {p.featured && (
+                <div style={{ position: "absolute", top: "0.6rem", right: "0.6rem", zIndex: 10, background: "#eab308", color: "#000", fontSize: ".6rem", fontWeight: 900, letterSpacing: 1, padding: ".2rem .5rem" }}>📌 HOME</div>
+              )}
               {/* Image */}
               <div style={{ position: "relative", height: 220, background: "#111" }}>
                 {p.image ? (
@@ -266,6 +326,13 @@ export default function AdminProductsPage() {
                       </button>
                     ))}
                   </div>
+                )}
+                {/* Featured pin toggle */}
+                {canEdit && (
+                  <button onClick={() => quickFeatured(p._id, !p.featured)}
+                    style={{ width: "100%", background: p.featured ? "rgba(234,179,8,.15)" : "#0a0a0a", border: `1px solid ${p.featured ? "#eab308" : "#1e1e1e"}`, color: p.featured ? "#eab308" : "#444", padding: ".35rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".68rem", letterSpacing: 1, textTransform: "uppercase", cursor: "pointer", marginBottom: ".5rem" }}>
+                    {p.featured ? "📌 PINNED TO HOMEPAGE" : "📌 PIN TO HOMEPAGE"}
+                  </button>
                 )}
                 {/* Actions */}
                 {(canEdit || canDelete) && (

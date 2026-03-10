@@ -8,15 +8,25 @@ export async function GET(req: NextRequest) {
     await connectDB()
     const { searchParams } = new URL(req.url)
     const category = searchParams.get("category") || ""
-    const status   = searchParams.get("status") || ""
+    const status   = searchParams.get("status")   || ""
+    const tag      = searchParams.get("tag")       || ""
+    const featured = searchParams.get("featured")  || ""
+    const limit    = parseInt(searchParams.get("limit") || "0")
+
     const filter: Record<string, unknown> = {}
-    // Escape user input to prevent ReDoS via malicious regex patterns
+
     if (category) {
       const safe = category.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").slice(0, 100)
       filter.category = { $regex: safe, $options: "i" }
     }
-    if (status) filter.stockStatus = status
-    const products = await Product.find(filter).sort({ createdAt: -1 }).lean()
+    if (status)         filter.stockStatus = status
+    if (tag)            filter.tag = { $regex: `^${tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" }
+    if (featured === "true") filter.featured = true
+
+    let query = Product.find(filter).sort({ createdAt: -1 })
+    if (limit > 0) query = query.limit(limit)
+
+    const products = await query.lean()
     return NextResponse.json(products)
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 })
