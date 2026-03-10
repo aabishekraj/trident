@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Bebas_Neue, Barlow, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/context/CartContext";
+import PromoBanner from "@/components/PromoBanner";
 
 const bebasNeue = Bebas_Neue({
   weight: "400",
@@ -37,7 +38,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${bebasNeue.variable} ${barlow.variable} ${barlowCondensed.variable}`}>
       <body>
-        <CartProvider>{children}</CartProvider>
+        <CartProvider>
+          <PromoBanner />
+          {children}
+        </CartProvider>
       </body>
     </html>
   );

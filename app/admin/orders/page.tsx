@@ -212,13 +212,17 @@ export default function AdminOrdersPage() {
     <div style={{ fontFamily: "'Barlow', sans-serif" }}>
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2rem" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2rem", flexWrap: "wrap", gap: "1rem" }}>
         <div>
           <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "2rem", letterSpacing: 2 }}>
             ORD<span style={{ color: "#e5202e" }}>ERS</span>
           </h1>
           {!loading && <p style={{ color: "#555", fontSize: ".8rem", marginTop: ".2rem" }}>{pagination.total} total orders</p>}
         </div>
+        <a href={`/api/orders/export${statusFilt ? `?status=${statusFilt}` : ""}`} download
+          style={{ background: "transparent", border: "1px solid #1e1e1e", color: "#555", padding: ".5rem 1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".72rem", letterSpacing: 1.5, textTransform: "uppercase", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: ".4rem" }}>
+          ↓ EXPORT CSV
+        </a>
       </div>
 
       {/* Status filter chips */}

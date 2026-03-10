@@ -214,6 +214,10 @@ export default function AdminProductsPage() {
           PROD<span style={{ color: "#e5202e" }}>UCTS</span>
         </h1>
         <div style={{ display: "flex", gap: ".6rem" }}>
+          <a href="/api/products/export" download
+            style={{ background: "transparent", color: "#555", border: "1px solid #1e1e1e", padding: ".55rem 1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".72rem", letterSpacing: 1.5, textTransform: "uppercase", textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
+            ↓ EXPORT
+          </a>
           <button onClick={downloadCsvTemplate} title="Download CSV template"
             style={{ background: "transparent", color: "#555", border: "1px solid #1e1e1e", padding: ".55rem 1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".72rem", letterSpacing: 1.5, textTransform: "uppercase", cursor: "pointer" }}>
             CSV TEMPLATE

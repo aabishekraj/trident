@@ -11,6 +11,7 @@ export async function GET(req: NextRequest) {
     const status   = searchParams.get("status")   || ""
     const tag      = searchParams.get("tag")       || ""
     const featured = searchParams.get("featured")  || ""
+    const search   = (searchParams.get("search") || "").trim().slice(0, 100)
     const limit    = parseInt(searchParams.get("limit") || "0")
 
     const filter: Record<string, unknown> = {}
@@ -22,6 +23,15 @@ export async function GET(req: NextRequest) {
     if (status)         filter.stockStatus = status
     if (tag)            filter.tag = { $regex: `^${tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" }
     if (featured === "true") filter.featured = true
+    if (search) {
+      const safe = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      filter.$or = [
+        { name: { $regex: safe, $options: "i" } },
+        { description: { $regex: safe, $options: "i" } },
+        { category: { $regex: safe, $options: "i" } },
+        { tag: { $regex: safe, $options: "i" } },
+      ]
+    }
 
     let query = Product.find(filter).sort({ createdAt: -1 })
     if (limit > 0) query = query.limit(limit)

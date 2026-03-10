@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     const user = await AdminUser.create({
       username,
       email,
-      password: hashPassword(password),
+      password: await hashPassword(password),
       role:     role || "analyst",
       createdBy: createdBy || "superadmin",
     })

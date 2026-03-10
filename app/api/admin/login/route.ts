@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     const timeout = new Promise<null>((_, reject) => setTimeout(() => reject(new Error("db_timeout")), 4000))
     await Promise.race([connectDB(), timeout])
     const dbUser = await AdminUser.findOne({ username, active: true })
-    if (dbUser && dbUser.checkPassword(password)) {
+    if (dbUser && await dbUser.checkPassword(password)) {
       await AdminUser.findByIdAndUpdate(dbUser._id, { lastLogin: new Date() })
       const sessionPayload = JSON.stringify({ id: dbUser._id, username: dbUser.username, role: dbUser.role })
       const sessionToken   = Buffer.from(sessionPayload).toString("base64")
@@ -86,7 +86,7 @@ export async function PUT(req: NextRequest) {
     await AdminUser.create({
       username,
       email,
-      password: hashPassword(password),
+      password: await hashPassword(password),
       role:     "superadmin",
       createdBy: "system",
     })

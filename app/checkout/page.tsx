@@ -10,6 +10,11 @@ type CartItem = {
   qty: number; selectedSize?: string; couponDiscount?: number
 }
 
+type SavedAddress = {
+  _id: string; label: string; name: string; phone: string
+  address: string; city: string; state: string; zip: string; country: string; isDefault: boolean
+}
+
 function safeImg(url?: string) {
   return url && (url.startsWith("http") || url.startsWith("data:")) ? url : "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&q=60"
 }
@@ -29,11 +34,14 @@ const LABEL: React.CSSProperties = {
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const [cart, setCart]       = useState<CartItem[]>([])
-  const [step, setStep]       = useState<"details" | "payment" | "confirm">("details")
-  const [placing, setPlacing] = useState(false)
-  const [orderId, setOrderId] = useState("")
+  const [cart, setCart]             = useState<CartItem[]>([])
+  const [step, setStep]             = useState<"details" | "payment" | "confirm">("details")
+  const [placing, setPlacing]       = useState(false)
+  const [orderId, setOrderId]       = useState("")
   const [orderError, setOrderError] = useState("")
+  const [isGuest, setIsGuest]       = useState(false)
+  const [savedAddrs, setSavedAddrs] = useState<SavedAddress[]>([])
+  const [saveAddr, setSaveAddr]     = useState(false)
 
   const [form, setForm] = useState({
     name: "", email: "", phone: "", address: "", city: "", state: "", zip: "", country: "India",
@@ -43,37 +51,70 @@ export default function CheckoutPage() {
   })
 
   useEffect(() => {
-    // Auth guard — must be signed in to checkout
     const cust = localStorage.getItem("trident_customer")
-    if (!cust) {
-      router.replace("/signin?redirect=/checkout")
-      return
-    }
-    const c = JSON.parse(cust)
-    setForm(f => ({ ...f, name: c.name || "", email: c.email || "" }))
-
     const saved = sessionStorage.getItem("trident_cart")
     if (saved) setCart(JSON.parse(saved))
-  }, [])
 
-  const subtotal  = cart.reduce((s, i) => s + finalPrice(i) * i.qty, 0)
-  const shipping  = subtotal > 500 ? 0 : 49
-  const tax       = +(subtotal * 0.18).toFixed(2)
-  const total     = +(subtotal + shipping + tax).toFixed(2)
+    if (cust) {
+      const c = JSON.parse(cust)
+      setForm(f => ({ ...f, name: c.name || "", email: c.email || "" }))
+      setIsGuest(false)
+
+      // Load saved addresses
+      fetch("/api/addresses", { headers: { "x-customer-email": c.email } })
+        .then(r => r.json())
+        .then(j => {
+          if (j.success && j.data?.length) {
+            setSavedAddrs(j.data)
+            const def = j.data.find((a: SavedAddress) => a.isDefault) || j.data[0]
+            if (def) setForm(f => ({ ...f, name: def.name || f.name, phone: def.phone || f.phone, address: def.address, city: def.city, state: def.state, zip: def.zip, country: def.country }))
+          }
+        })
+        .catch(() => {})
+
+      // Save cart for abandoned cart tracking
+      if (saved) {
+        const items = JSON.parse(saved)
+        const total = items.reduce((s: number, i: CartItem) => s + finalPrice(i) * i.qty, 0)
+        fetch("/api/cart-session", { method: "POST", headers: { "Content-Type": "application/json", "x-customer-email": c.email }, body: JSON.stringify({ items, total, customerName: c.name }) }).catch(() => {})
+      }
+    } else {
+      setIsGuest(true)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const subtotal = cart.reduce((s, i) => s + finalPrice(i) * i.qty, 0)
+  const shipping = subtotal > 500 ? 0 : 49
+  const tax      = +(subtotal * 0.18).toFixed(2)
+  const total    = +(subtotal + shipping + tax).toFixed(2)
 
   function setF(key: string, val: string) { setForm(f => ({ ...f, [key]: val })) }
+
+  function applyAddress(a: SavedAddress) {
+    setForm(f => ({ ...f, name: a.name, phone: a.phone, address: a.address, city: a.city, state: a.state, zip: a.zip, country: a.country }))
+  }
 
   async function placeOrder() {
     if (!form.name || !form.email || !form.address) return
     setPlacing(true)
     setOrderError("")
 
-    // 12-second hard timeout so the UI never freezes
     const controller = new AbortController()
     const timeoutId  = setTimeout(() => controller.abort(), 12000)
 
     try {
       const shippingAddress = `${form.address}, ${form.city}, ${form.state} ${form.zip}, ${form.country}`
+      const cust = localStorage.getItem("trident_customer")
+      const customerEmail = cust ? JSON.parse(cust).email : form.email
+
+      // Optionally save address for logged-in users
+      if (!isGuest && saveAddr && form.address) {
+        fetch("/api/addresses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-customer-email": customerEmail },
+          body: JSON.stringify({ label: "Saved", name: form.name, phone: form.phone, address: form.address, city: form.city, state: form.state, zip: form.zip, country: form.country }),
+        }).catch(() => {})
+      }
 
       if (form.paymentMethod === "card") {
         const res = await fetch("/api/checkout", {
@@ -88,13 +129,14 @@ export default function CheckoutPage() {
         })
         const j = await res.json()
         if (j.url) {
+          // Mark cart as checked out
+          fetch("/api/cart-session", { method: "DELETE", headers: { "x-customer-email": customerEmail } }).catch(() => {})
           sessionStorage.removeItem("trident_cart")
           window.location.href = j.url
           return
         }
         setOrderError(j.error || "Payment could not be initiated. Please try again.")
       } else {
-        // COD or UPI — create order directly
         const res = await fetch("/api/orders", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -110,6 +152,7 @@ export default function CheckoutPage() {
         })
         const j = await res.json()
         if (j.success) {
+          fetch("/api/cart-session", { method: "DELETE", headers: { "x-customer-email": customerEmail } }).catch(() => {})
           setOrderId(j.data.orderId)
           sessionStorage.removeItem("trident_cart")
           setStep("confirm")
@@ -118,7 +161,6 @@ export default function CheckoutPage() {
         setOrderError(j.error || "Failed to place order. Please try again.")
       }
     } catch (e: unknown) {
-      console.error(e)
       const isTimeout = e instanceof Error && (e.name === "AbortError" || e.message.includes("timeout"))
       setOrderError(isTimeout
         ? "Request timed out — our servers may be busy. Please try again in a moment."
@@ -137,7 +179,7 @@ export default function CheckoutPage() {
         <div style={{ color: "#e5202e", fontFamily: "'Barlow Condensed', sans-serif", fontSize: "1.1rem", fontWeight: 700, letterSpacing: 2, marginBottom: "1rem" }}>{orderId}</div>
         <p style={{ color: "#666", lineHeight: 1.7, marginBottom: "2rem" }}>
           A confirmation has been sent to <strong style={{ color: "#f5f5f5" }}>{form.email}</strong>.<br />
-          You can track your order anytime from your account.
+          Track your order anytime from the link below.
         </p>
         <div style={{ background: "#0d0d0d", border: "1px solid #1e1e1e", padding: "1.5rem", marginBottom: "2rem", textAlign: "left" }}>
           <div style={{ fontSize: ".7rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#666", marginBottom: "1rem" }}>Order Summary</div>
@@ -151,17 +193,21 @@ export default function CheckoutPage() {
             <span>TOTAL</span><span style={{ color: "#e5202e" }}>${total}</span>
           </div>
         </div>
-        <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
+        <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
           <Link href="/" style={{ background: "#f5f5f5", color: "#0a0a0a", padding: ".8rem 2rem", fontWeight: 800, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none" }}>KEEP SHOPPING</Link>
           <Link href={orderId ? `/track?id=${orderId}` : "/track"} style={{ border: "1px solid #222", color: "#888", padding: ".8rem 2rem", fontWeight: 700, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none" }}>TRACK ORDER</Link>
         </div>
+        {isGuest && (
+          <div style={{ marginTop: "1.5rem", background: "rgba(59,130,246,.08)", border: "1px solid rgba(59,130,246,.2)", padding: "1rem", fontSize: ".78rem", color: "#3b82f6" }}>
+            💡 <Link href="/signin" style={{ color: "#3b82f6", fontWeight: 700 }}>Create an account</Link> to track orders and save addresses.
+          </div>
+        )}
       </div>
     </div>
   )
 
   return (
     <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Barlow', sans-serif" }}>
-      {/* Nav */}
       <nav style={{ position: "sticky", top: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2.5rem", height: 64, background: "rgba(10,10,10,0.97)", borderBottom: "1px solid #1e1e1e" }}>
         <Link href="/" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.8rem", letterSpacing: 4, color: "#f5f5f5", textDecoration: "none" }}>TRIDENT</Link>
         <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: "1rem", letterSpacing: 3, textTransform: "uppercase", color: "#666" }}>CHECKOUT</div>
@@ -170,8 +216,16 @@ export default function CheckoutPage() {
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "3rem 2rem", display: "grid", gridTemplateColumns: "1fr 380px", gap: "3rem" }}>
 
-        {/* ── Left: Form ── */}
+        {/* Left: Form */}
         <div>
+          {/* Guest banner */}
+          {isGuest && (
+            <div style={{ background: "rgba(234,179,8,.08)", border: "1px solid rgba(234,179,8,.25)", padding: ".85rem 1rem", marginBottom: "2rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: ".5rem" }}>
+              <span style={{ fontSize: ".78rem", color: "#eab308" }}>🛒 Checking out as guest</span>
+              <Link href={`/signin?redirect=/checkout`} style={{ fontSize: ".72rem", fontWeight: 800, color: "#eab308", textDecoration: "none", letterSpacing: 1 }}>SIGN IN FOR FASTER CHECKOUT →</Link>
+            </div>
+          )}
+
           {/* Steps */}
           <div style={{ display: "flex", gap: "2rem", marginBottom: "2.5rem" }}>
             {[["details","DETAILS"],["payment","PAYMENT"]].map(([s, l]) => (
@@ -186,18 +240,34 @@ export default function CheckoutPage() {
             <div>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.4rem", letterSpacing: 2, marginBottom: "1.5rem" }}>CONTACT INFORMATION</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
-                <div><label style={LABEL}>First Name</label><input style={INP} value={form.name} onChange={e => setF("name", e.target.value)} placeholder="John Doe" /></div>
+                <div><label style={LABEL}>Full Name *</label><input style={INP} value={form.name} onChange={e => setF("name", e.target.value)} placeholder="John Doe" /></div>
                 <div><label style={LABEL}>Email *</label><input style={INP} type="email" value={form.email} onChange={e => setF("email", e.target.value)} placeholder="john@email.com" /></div>
               </div>
               <div style={{ marginBottom: "1rem" }}><label style={LABEL}>Phone</label><input style={INP} value={form.phone} onChange={e => setF("phone", e.target.value)} placeholder="+91 98765 43210" /></div>
 
+              {/* Saved addresses (logged-in only) */}
+              {!isGuest && savedAddrs.length > 0 && (
+                <div style={{ marginBottom: "1.5rem" }}>
+                  <div style={{ fontSize: ".65rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#555", marginBottom: ".75rem" }}>SAVED ADDRESSES</div>
+                  <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
+                    {savedAddrs.map(a => (
+                      <button key={a._id} onClick={() => applyAddress(a)}
+                        style={{ background: form.address === a.address ? "rgba(229,32,46,.1)" : "#0d0d0d", border: `1px solid ${form.address === a.address ? "#e5202e" : "#1e1e1e"}`, color: form.address === a.address ? "#f5f5f5" : "#666", padding: ".5rem 1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".72rem", letterSpacing: 1, cursor: "pointer", textAlign: "left" }}>
+                        <div style={{ color: form.address === a.address ? "#e5202e" : "#888", fontSize: ".6rem", fontWeight: 700, letterSpacing: 1.5, marginBottom: ".2rem" }}>{a.label}</div>
+                        <div style={{ fontSize: ".72rem" }}>{a.address}, {a.city}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.4rem", letterSpacing: 2, margin: "2rem 0 1.5rem" }}>SHIPPING ADDRESS</div>
-              <div style={{ marginBottom: "1rem" }}><label style={LABEL}>Address</label><input style={INP} value={form.address} onChange={e => setF("address", e.target.value)} placeholder="123 Main Street, Apt 4B" /></div>
+              <div style={{ marginBottom: "1rem" }}><label style={LABEL}>Address *</label><input style={INP} value={form.address} onChange={e => setF("address", e.target.value)} placeholder="123 Main Street, Apt 4B" /></div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
                 <div><label style={LABEL}>City</label><input style={INP} value={form.city} onChange={e => setF("city", e.target.value)} placeholder="Chennai" /></div>
                 <div><label style={LABEL}>State</label><input style={INP} value={form.state} onChange={e => setF("state", e.target.value)} placeholder="Tamil Nadu" /></div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "2rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: !isGuest ? "1rem" : "2rem" }}>
                 <div><label style={LABEL}>PIN Code</label><input style={INP} value={form.zip} onChange={e => setF("zip", e.target.value)} placeholder="600001" /></div>
                 <div><label style={LABEL}>Country</label>
                   <select style={{ ...INP, appearance: "none" }} value={form.country} onChange={e => setF("country", e.target.value)}>
@@ -205,6 +275,15 @@ export default function CheckoutPage() {
                   </select>
                 </div>
               </div>
+
+              {/* Save address checkbox for logged-in users */}
+              {!isGuest && (
+                <label style={{ display: "flex", alignItems: "center", gap: ".6rem", marginBottom: "2rem", cursor: "pointer" }}>
+                  <input type="checkbox" checked={saveAddr} onChange={e => setSaveAddr(e.target.checked)} style={{ accentColor: "#e5202e", width: 14, height: 14 }} />
+                  <span style={{ fontSize: ".75rem", color: "#666" }}>Save this address for future orders</span>
+                </label>
+              )}
+
               <button onClick={() => { if (form.name && form.email && form.address) setStep("payment") }}
                 style={{ width: "100%", background: "#e5202e", color: "#fff", border: "none", padding: "1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".85rem", letterSpacing: 2, textTransform: "uppercase", cursor: "pointer" }}>
                 CONTINUE TO PAYMENT →
@@ -216,7 +295,6 @@ export default function CheckoutPage() {
             <div>
               <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.4rem", letterSpacing: 2, marginBottom: "1.5rem" }}>PAYMENT METHOD</div>
 
-              {/* Payment methods */}
               {[
                 { value: "card", label: "💳  Credit / Debit Card" },
                 { value: "upi",  label: "📱  UPI" },
@@ -263,7 +341,7 @@ export default function CheckoutPage() {
           )}
         </div>
 
-        {/* ── Right: Order Summary ── */}
+        {/* Right: Order Summary */}
         <div>
           <div style={{ background: "#0d0d0d", border: "1px solid #1e1e1e", padding: "1.5rem", position: "sticky", top: 80 }}>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.3rem", letterSpacing: 2, marginBottom: "1.5rem" }}>ORDER SUMMARY</div>

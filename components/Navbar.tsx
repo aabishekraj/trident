@@ -150,6 +150,9 @@ export default function Navbar() {
               )}
             </Link>
 
+            {/* Search */}
+            <Link href="/search" style={{ color: "#888", fontSize: "1.05rem", lineHeight: 1, textDecoration: "none" }} title="Search">🔍</Link>
+
             {/* Cart */}
             <button onClick={() => setOpen(true)} style={{ position: "relative", background: "none", border: "none", color: "#888", fontSize: "1.1rem", cursor: "pointer", lineHeight: 1, padding: 0 }}>
               🛍

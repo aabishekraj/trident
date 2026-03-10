@@ -51,10 +51,12 @@ export default function AccountPage() {
       {/* Quick links grid */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1px", background: "#1e1e1e", marginBottom: "2.5rem" }}>
         {[
-          { href: "/account/orders",   icon: "📦", title: "My Orders",   desc: "Track and manage your orders" },
-          { href: "/account/wishlist", icon: "♡",  title: "Wishlist",    desc: "Your saved items" },
-          { href: "/collection/men",   icon: "👟", title: "Shop Men",    desc: "Browse the latest men's collection" },
-          { href: "/collection/women", icon: "✨", title: "Shop Women",  desc: "Browse the latest women's collection" },
+          { href: "/account/orders",    icon: "📦", title: "My Orders",       desc: "Track and manage your orders" },
+          { href: "/account/wishlist",  icon: "♡",  title: "Wishlist",        desc: "Your saved items" },
+          { href: "/account/addresses", icon: "📍", title: "Saved Addresses", desc: "Manage your shipping addresses" },
+          { href: "/search",            icon: "🔍", title: "Search",          desc: "Find products instantly" },
+          { href: "/collection/men",    icon: "👟", title: "Shop Men",        desc: "Browse the latest men's collection" },
+          { href: "/collection/women",  icon: "✨", title: "Shop Women",      desc: "Browse the latest women's collection" },
         ].map(({ href, icon, title, desc }) => (
           <Link key={href} href={href} style={{
             display: "flex", alignItems: "center", gap: "1rem",
