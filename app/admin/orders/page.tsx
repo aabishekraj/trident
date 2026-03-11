@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { IOrder, OrderStatus } from "@/types"
+import { useCurrency } from "@/context/CurrencyContext"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Pagination = { page: number; pages: number; total: number; limit: number }
@@ -33,10 +34,11 @@ function Badge({ status }: { status: string }) {
 }
 
 // ── Order Detail Modal ─────────────────────────────────────────────────────────
-function OrderModal({ order, onClose, onStatusChange }: {
+function OrderModal({ order, onClose, onStatusChange, fmt }: {
   order: IOrder
   onClose: () => void
   onStatusChange: (id: string, status: OrderStatus) => void
+  fmt: (n: number) => string
 }) {
   const [status, setStatus] = useState<OrderStatus>(order.status ?? "pending")
   const [saving, setSaving] = useState(false)
@@ -96,14 +98,14 @@ function OrderModal({ order, onClose, onStatusChange }: {
                 <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: ".75rem 1rem", borderBottom: i < (order.items?.length ?? 1) - 1 ? "1px solid #0f0f0f" : "none" }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: ".88rem" }}>{item.name}</div>
-                    <div style={{ color: "#555", fontSize: ".75rem", marginTop: ".1rem" }}>Qty: {item.qty} × ${item.price}</div>
+                    <div style={{ color: "#555", fontSize: ".75rem", marginTop: ".1rem" }}>Qty: {item.qty} × {fmt(item.price)}</div>
                   </div>
-                  <div style={{ fontWeight: 800, fontSize: ".9rem" }}>${(item.qty * item.price).toFixed(2)}</div>
+                  <div style={{ fontWeight: 800, fontSize: ".9rem" }}>{fmt(item.qty * item.price)}</div>
                 </div>
               ))}
               <div style={{ display: "flex", justifyContent: "space-between", padding: ".85rem 1rem", background: "#0a0a0a", borderTop: "1px solid #1e1e1e" }}>
                 <span style={{ fontWeight: 800, fontSize: ".88rem" }}>TOTAL</span>
-                <span style={{ fontWeight: 800, fontSize: ".95rem", color: "#22c55e" }}>${Number(order.totalAmount).toFixed(2)}</span>
+                <span style={{ fontWeight: 800, fontSize: ".95rem", color: "#22c55e" }}>{fmt(Number(order.totalAmount))}</span>
               </div>
             </div>
           </div>
@@ -157,6 +159,7 @@ function OrderModal({ order, onClose, onStatusChange }: {
 
 // ── Orders Page ───────────────────────────────────────────────────────────────
 export default function AdminOrdersPage() {
+  const { fmt } = useCurrency()
   const [orders,     setOrders]     = useState<IOrder[]>([])
   const [pagination, setPagination] = useState<Pagination>({ page: 1, pages: 1, total: 0, limit: 12 })
   const [loading,    setLoading]    = useState(true)
@@ -164,6 +167,8 @@ export default function AdminOrdersPage() {
   const [statusFilt, setStatusFilt] = useState("")
   const [selected,   setSelected]   = useState<IOrder | null>(null)
   const [toast,      setToast]      = useState<{ msg: string; ok: boolean } | null>(null)
+  const [purgeDays,  setPurgeDays]  = useState("")
+  const [purging,    setPurging]    = useState(false)
 
   const load = useCallback(async (page = 1) => {
     setLoading(true)
@@ -201,6 +206,26 @@ export default function AdminOrdersPage() {
   function showToast(msg: string, ok = true) {
     setToast({ msg, ok })
     setTimeout(() => setToast(null), 3000)
+  }
+
+  async function purgeOrders(olderThanDays?: number) {
+    const label = olderThanDays ? `orders older than ${olderThanDays} days` : "ALL orders"
+    if (!confirm(`This will permanently delete ${label}. This cannot be undone. Continue?`)) return
+    setPurging(true)
+    try {
+      const url = olderThanDays ? `/api/orders?olderThanDays=${olderThanDays}` : "/api/orders"
+      const r = await fetch(url, { method: "DELETE" })
+      const j = await r.json()
+      if (j.success) {
+        showToast(`Purged ${j.deleted} order${j.deleted !== 1 ? "s" : ""}.`)
+        load(1)
+      } else {
+        showToast(j.error || "Purge failed.", false)
+      }
+    } catch {
+      showToast("Network error.", false)
+    }
+    setPurging(false)
   }
 
   const statusCounts = STATUSES.reduce((acc, s) => {
@@ -301,7 +326,7 @@ export default function AdminOrdersPage() {
                   <td style={{ padding: ".9rem 1rem", color: "#888", fontSize: ".82rem" }}>
                     {o.items?.length ?? 0} item{(o.items?.length ?? 0) !== 1 ? "s" : ""}
                   </td>
-                  <td style={{ padding: ".9rem 1rem", fontWeight: 800, fontSize: ".9rem" }}>${Number(o.totalAmount).toFixed(2)}</td>
+                  <td style={{ padding: ".9rem 1rem", fontWeight: 800, fontSize: ".9rem" }}>{fmt(Number(o.totalAmount))}</td>
                   <td style={{ padding: ".9rem 1rem" }}><Badge status={o.status ?? "pending"} /></td>
                   <td style={{ padding: ".9rem 1rem", color: "#555", fontSize: ".75rem" }}>
                     {o.createdAt ? new Date(o.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
@@ -362,8 +387,39 @@ export default function AdminOrdersPage() {
 
       {/* Order detail modal */}
       {selected && (
-        <OrderModal order={selected} onClose={() => setSelected(null)} onStatusChange={updateStatus} />
+        <OrderModal order={selected} onClose={() => setSelected(null)} onStatusChange={updateStatus} fmt={fmt} />
       )}
+
+      {/* Purge / Danger Zone */}
+      <div style={{ marginTop: "3rem", border: "1px solid rgba(229,32,46,.25)", padding: "1.5rem" }}>
+        <div style={{ fontSize: ".65rem", fontWeight: 700, letterSpacing: 2.5, textTransform: "uppercase", color: "#e5202e", marginBottom: "1rem" }}>⚠ DANGER ZONE — ORDER PURGE</div>
+        <p style={{ color: "#555", fontSize: ".8rem", marginBottom: "1.5rem", lineHeight: 1.6 }}>
+          Permanently delete orders from the database. This action cannot be undone.
+        </p>
+        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "flex-end" }}>
+          {/* Purge by age */}
+          <div>
+            <div style={{ fontSize: ".65rem", fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: "#555", marginBottom: ".4rem" }}>Purge orders older than</div>
+            <div style={{ display: "flex", gap: ".5rem", alignItems: "center" }}>
+              <input
+                type="number" min={1} placeholder="days"
+                value={purgeDays} onChange={e => setPurgeDays(e.target.value)}
+                style={{ ...INP, width: 90 }}
+              />
+              <span style={{ color: "#444", fontSize: ".8rem" }}>days</span>
+              <button onClick={() => purgeDays && purgeOrders(parseInt(purgeDays))} disabled={purging || !purgeDays}
+                style={{ background: "rgba(234,179,8,.12)", border: "1px solid rgba(234,179,8,.3)", color: "#eab308", padding: ".5rem 1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".72rem", letterSpacing: 1, textTransform: "uppercase", cursor: purging || !purgeDays ? "not-allowed" : "pointer", opacity: purging || !purgeDays ? .5 : 1 }}>
+                PURGE OLD
+              </button>
+            </div>
+          </div>
+          {/* Purge all */}
+          <button onClick={() => purgeOrders()} disabled={purging}
+            style={{ background: "rgba(229,32,46,.1)", border: "1px solid rgba(229,32,46,.4)", color: "#e5202e", padding: ".6rem 1.3rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".72rem", letterSpacing: 1.5, textTransform: "uppercase", cursor: purging ? "not-allowed" : "pointer", opacity: purging ? .5 : 1 }}>
+            {purging ? "PURGING…" : "PURGE ALL ORDERS"}
+          </button>
+        </div>
+      </div>
 
       {/* Toast */}
       {toast && (

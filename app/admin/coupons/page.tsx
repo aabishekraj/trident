@@ -10,6 +10,7 @@ type Coupon = {
   scope: CouponScope; categories?: string[]; productIds?: string[]
   minOrderValue: number; maxUses: number; usedCount: number
   expiresAt: string; active: boolean; description: string
+  validForOrderCount: number
 }
 
 const CATEGORIES = ["Men — T-Shirts","Men — Shirts","Men — Shorts","Men — Shoes","Women — T-Shirts","Women — Dresses","Women — Shoes","Kids — Clothing","Kids — Shoes"]
@@ -20,7 +21,7 @@ const EMPTY: Omit<Coupon,"_id"|"usedCount"> = {
   code: "", discount: 10, type: "percent", scope: "all",
   categories: [], productIds: [], minOrderValue: 0,
   maxUses: 100, expiresAt: new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0],
-  active: true, description: "",
+  active: true, description: "", validForOrderCount: 0,
 }
 
 export default function AdminCouponsPage() {
@@ -55,7 +56,7 @@ export default function AdminCouponsPage() {
   function openAdd() { setEditing(null); setForm(EMPTY); setModal(true) }
   function openEdit(c: Coupon) {
     setEditing(c)
-    setForm({ code: c.code, discount: c.discount, type: c.type, scope: c.scope, categories: c.categories||[], productIds: c.productIds||[], minOrderValue: c.minOrderValue, maxUses: c.maxUses, expiresAt: c.expiresAt?.split("T")[0]||"", active: c.active, description: c.description })
+    setForm({ code: c.code, discount: c.discount, type: c.type, scope: c.scope, categories: c.categories||[], productIds: c.productIds||[], minOrderValue: c.minOrderValue, maxUses: c.maxUses, expiresAt: c.expiresAt?.split("T")[0]||"", active: c.active, description: c.description, validForOrderCount: c.validForOrderCount||0 })
     setModal(true)
   }
 
@@ -133,7 +134,7 @@ export default function AdminCouponsPage() {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
-                {["Code","Discount","Scope","Min Order","Uses","Expires","Status","Actions"].map(h => (
+                {["Code","Discount","Scope","Min Order","Valid For Order #","Uses","Expires","Status","Actions"].map(h => (
                   <th key={h} style={{ padding: ".85rem 1.2rem", textAlign: "left", fontSize: ".68rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#555", borderBottom: "1px solid #1e1e1e" }}>{h}</th>
                 ))}
               </tr>
@@ -162,6 +163,11 @@ export default function AdminCouponsPage() {
                     </td>
                     <td style={{ padding: ".9rem 1.2rem", color: "#888", fontSize: ".85rem" }}>
                       {c.minOrderValue > 0 ? `$${c.minOrderValue}` : "—"}
+                    </td>
+                    <td style={{ padding: ".9rem 1.2rem" }}>
+                      <span style={{ fontSize: ".85rem", color: c.validForOrderCount > 0 ? "#a855f7" : "#555" }}>
+                        {c.validForOrderCount > 0 ? `#${c.validForOrderCount} only` : "Any"}
+                      </span>
                     </td>
                     <td style={{ padding: ".9rem 1.2rem" }}>
                       <span style={{ fontSize: ".85rem", color: "#888" }}>{c.usedCount || 0}</span>
@@ -286,6 +292,19 @@ export default function AdminCouponsPage() {
                 <div><label style={LBL}>Expires On</label><input style={{ ...INP, colorScheme: "dark" }} type="date" value={form.expiresAt} onChange={e => setF("expiresAt", e.target.value)} /></div>
               </div>
 
+              {/* Order count restriction */}
+              <div>
+                <label style={LBL}>Valid for Customer's Order # (0 = any order)</label>
+                <input style={INP} type="number" min={0} value={form.validForOrderCount}
+                  onChange={e => setF("validForOrderCount", parseInt(e.target.value)||0)}
+                  placeholder="0 = valid for all orders, 1 = first order only, 2 = second order…" />
+                {form.validForOrderCount > 0 && (
+                  <div style={{ fontSize: ".72rem", color: "#a855f7", marginTop: ".4rem" }}>
+                    This coupon will only work when the customer is placing their #{form.validForOrderCount} order.
+                  </div>
+                )}
+              </div>
+
               {/* Active toggle */}
               <label style={{ display: "flex", alignItems: "center", gap: ".75rem", cursor: "pointer" }}>
                 <input type="checkbox" checked={form.active} onChange={e => setF("active", e.target.checked)} style={{ accentColor: "#e5202e", width: 16, height: 16 }} />
@@ -299,6 +318,7 @@ export default function AdminCouponsPage() {
                   <div style={{ fontWeight: 700, fontSize: ".88rem" }}>{form.discount}{form.type === "percent" ? "% OFF" : "$ OFF"} {form.scope === "all" ? "everything" : form.scope === "category" ? form.categories?.join(", ") : "selected items"}</div>
                   <div style={{ color: "#555", fontSize: ".75rem", marginTop: ".2rem" }}>
                     {form.minOrderValue > 0 && `Min order $${form.minOrderValue} · `}Max {form.maxUses} uses · Expires {form.expiresAt}
+                    {form.validForOrderCount > 0 && ` · Order #${form.validForOrderCount} only`}
                   </div>
                 </div>
               </div>

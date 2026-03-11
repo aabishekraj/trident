@@ -20,7 +20,6 @@ function SignInContent() {
   const params = useSearchParams()
   const redirectTo = params.get("redirect") || "/"
 
-  const [mode, setMode]       = useState<"signin" | "register">("signin")
   const [step, setStep]       = useState<"email" | "verify">("email")
   const [email, setEmail]     = useState("")
   const [name, setName]       = useState("")
@@ -30,7 +29,6 @@ function SignInContent() {
 
   async function sendOtp() {
     if (!email) return setError("Please enter your email.")
-    if (mode === "register" && !name) return setError("Please enter your name.")
     setLoading(true); setError("")
     try {
       const res = await fetch("/api/auth/customer", {
@@ -82,36 +80,22 @@ function SignInContent() {
           <Link href="/" style={{ display: "block", fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.8rem", letterSpacing: 4, color: "#f5f5f5", textDecoration: "none", marginBottom: "3rem" }}>TRIDENT</Link>
 
           <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "2.5rem", letterSpacing: 2, marginBottom: ".5rem" }}>
-            {mode === "signin" ? "WELCOME BACK" : "CREATE ACCOUNT"}
+            WELCOME
           </h1>
           <p style={{ color: "#555", fontSize: ".88rem", marginBottom: "2.5rem", lineHeight: 1.6 }}>
             {step === "email"
-              ? mode === "signin" ? "Sign in to track orders, save favourites & more." : "Join TRIDENT for exclusive access & faster checkout."
+              ? "Sign in or create an account to track orders, save addresses & more."
               : `We've sent a 6-digit code to ${email}`}
           </p>
-
-          {/* Mode toggle */}
-          {step === "email" && (
-            <div style={{ display: "flex", background: "#0d0d0d", border: "1px solid #1e1e1e", marginBottom: "2rem" }}>
-              {[["signin","SIGN IN"],["register","REGISTER"]].map(([m, l]) => (
-                <button key={m} onClick={() => { setMode(m as "signin"|"register"); setError("") }}
-                  style={{ flex: 1, padding: ".7rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", border: "none", background: mode === m ? "#e5202e" : "transparent", color: mode === m ? "#fff" : "#555", cursor: "pointer", transition: "all .2s" }}>
-                  {l}
-                </button>
-              ))}
-            </div>
-          )}
 
           {/* Form */}
           {step === "email" ? (
             <div>
-              {mode === "register" && (
-                <div style={{ marginBottom: "1rem" }}>
-                  <label style={LABEL}>Full Name</label>
-                  <input style={INP} placeholder="John Doe" value={name} onChange={e => setName(e.target.value)}
-                    onFocus={e => (e.target.style.borderColor = "#333")} onBlur={e => (e.target.style.borderColor = "#1e1e1e")} />
-                </div>
-              )}
+              <div style={{ marginBottom: "1rem" }}>
+                <label style={LABEL}>Full Name</label>
+                <input style={INP} placeholder="John Doe" value={name} onChange={e => setName(e.target.value)}
+                  onFocus={e => (e.target.style.borderColor = "#333")} onBlur={e => (e.target.style.borderColor = "#1e1e1e")} />
+              </div>
               <div style={{ marginBottom: "1.5rem" }}>
                 <label style={LABEL}>Email Address</label>
                 <input style={INP} type="email" placeholder="john@email.com" value={email} onChange={e => setEmail(e.target.value)}
@@ -121,7 +105,7 @@ function SignInContent() {
               {error && <div style={{ color: "#e5202e", fontSize: ".82rem", fontWeight: 600, marginBottom: "1rem" }}>{error}</div>}
               <button onClick={sendOtp} disabled={loading}
                 style={{ width: "100%", background: loading ? "#333" : "#e5202e", color: "#fff", border: "none", padding: "1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".85rem", letterSpacing: 2, textTransform: "uppercase", cursor: loading ? "not-allowed" : "pointer" }}>
-                {loading ? "SENDING…" : "SEND OTP →"}
+                {loading ? "SENDING…" : "CONTINUE WITH OTP →"}
               </button>
             </div>
           ) : (

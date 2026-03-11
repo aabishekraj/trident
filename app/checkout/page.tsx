@@ -44,7 +44,7 @@ export default function CheckoutPage() {
   const [orderError, setOrderError] = useState("")
   const [isGuest, setIsGuest]       = useState(false)
   const [savedAddrs, setSavedAddrs] = useState<SavedAddress[]>([])
-  const [saveAddr, setSaveAddr]     = useState(false)
+
   const [currencyError, setCurrencyError] = useState("")
 
   const [form, setForm] = useState({
@@ -121,7 +121,7 @@ export default function CheckoutPage() {
       const cust = localStorage.getItem("trident_customer")
       const customerEmail = cust ? JSON.parse(cust).email : form.email
 
-      if (!isGuest && saveAddr && form.address) {
+      if (!isGuest && form.address) {
         fetch("/api/addresses", {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-customer-email": customerEmail },
@@ -278,7 +278,7 @@ export default function CheckoutPage() {
                 <div><label style={LABEL}>City</label><input style={INP} value={form.city} onChange={e => setF("city", e.target.value)} placeholder="Chennai" /></div>
                 <div><label style={LABEL}>State</label><input style={INP} value={form.state} onChange={e => setF("state", e.target.value)} placeholder="Tamil Nadu" /></div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: !isGuest ? "1rem" : "2rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "2rem" }}>
                 <div><label style={LABEL}>PIN Code</label><input style={INP} value={form.zip} onChange={e => setF("zip", e.target.value)} placeholder="600001" /></div>
                 <div><label style={LABEL}>Country</label>
                   <select style={{ ...INP, appearance: "none" }} value={form.country} onChange={e => setF("country", e.target.value)}>
@@ -287,12 +287,6 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {!isGuest && (
-                <label style={{ display: "flex", alignItems: "center", gap: ".6rem", marginBottom: "2rem", cursor: "pointer" }}>
-                  <input type="checkbox" checked={saveAddr} onChange={e => setSaveAddr(e.target.checked)} style={{ accentColor: "#e5202e", width: 14, height: 14 }} />
-                  <span style={{ fontSize: ".75rem", color: "#666" }}>Save this address for future orders</span>
-                </label>
-              )}
 
               <button onClick={() => { if (form.name && form.email && form.address) setStep("payment") }}
                 style={{ width: "100%", background: "#e5202e", color: "#fff", border: "none", padding: "1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".85rem", letterSpacing: 2, textTransform: "uppercase", cursor: "pointer" }}>

@@ -6,6 +6,7 @@ export interface CouponDocument extends Document {
   categories?: string[]; productIds?: string[]
   minOrderValue: number; maxUses: number; usedCount: number
   expiresAt?: Date; active: boolean; description?: string
+  validForOrderCount?: number  // 0 or undefined = any order; 1 = first order only; 2 = second, etc.
 }
 
 const CouponSchema = new Schema<CouponDocument>({
@@ -19,8 +20,9 @@ const CouponSchema = new Schema<CouponDocument>({
   maxUses:       { type: Number, default: 100 },
   usedCount:     { type: Number, default: 0 },
   expiresAt:     { type: Date },
-  active:        { type: Boolean, default: true },
-  description:   { type: String, default: "" },
+  active:               { type: Boolean, default: true },
+  description:          { type: String, default: "" },
+  validForOrderCount:   { type: Number, default: 0 },
 }, { timestamps: true })
 
 CouponSchema.index({ code: 1 })

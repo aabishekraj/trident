@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useCurrency } from "@/context/CurrencyContext"
 
 type RequestType = "cancel_request" | "return_request" | "replacement_request"
 
@@ -22,6 +23,7 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 export default function MyOrdersPage() {
+  const { fmt } = useCurrency()
   const [orders,     setOrders]     = useState<Order[]>([])
   const [loading,    setLoading]    = useState(true)
   const [open,       setOpen]       = useState<string | null>(null)
@@ -43,7 +45,7 @@ export default function MyOrdersPage() {
         body: JSON.stringify({
           type,
           subject: `${typeLabel} Request — ${order.orderId}`,
-          message: `Customer has requested a ${typeLabel.toLowerCase()} for order ${order.orderId}. Total: $${order.totalAmount.toFixed(2)}. Payment: ${order.paymentMethod || "N/A"}.`,
+          message: `Customer has requested a ${typeLabel.toLowerCase()} for order ${order.orderId}. Total: ${fmt(order.totalAmount)}. Payment: ${order.paymentMethod || "N/A"}.`,
           customerName: c.name,
           customerEmail: c.email,
           orderId: order.orderId,
@@ -134,7 +136,7 @@ export default function MyOrdersPage() {
                   </div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontWeight: 800, fontSize: "1.05rem", marginBottom: ".4rem" }}>${order.totalAmount.toFixed(2)}</div>
+                  <div style={{ fontWeight: 800, fontSize: "1.05rem", marginBottom: ".4rem" }}>{fmt(order.totalAmount)}</div>
                   <div style={{ color: "#444", fontSize: ".7rem", fontWeight: 700 }}>{open === order._id ? "▲ HIDE" : "▼ DETAILS"}</div>
                 </div>
               </div>
@@ -181,11 +183,11 @@ export default function MyOrdersPage() {
                     {order.items.map((item, idx) => (
                       <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: ".6rem 0", borderBottom: "1px solid #111", fontSize: ".85rem" }}>
                         <span style={{ color: "#888" }}>{item.name}{item.size ? ` (${item.size})` : ""} × {item.qty}</span>
-                        <span style={{ fontWeight: 700 }}>${(item.price * item.qty).toFixed(2)}</span>
+                        <span style={{ fontWeight: 700 }}>{fmt(item.price * item.qty)}</span>
                       </div>
                     ))}
                     <div style={{ display: "flex", justifyContent: "space-between", padding: ".75rem 0 0", fontWeight: 800 }}>
-                      <span>TOTAL</span><span style={{ color: "#e5202e" }}>${order.totalAmount.toFixed(2)}</span>
+                      <span>TOTAL</span><span style={{ color: "#e5202e" }}>{fmt(order.totalAmount)}</span>
                     </div>
                   </div>
 

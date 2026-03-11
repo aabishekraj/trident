@@ -153,3 +153,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
+
+// ─── DELETE /api/orders — admin purge ─────────────────────────────────────────
+export async function DELETE(req: NextRequest) {
+  const session = getAdminSession(req);
+  if (!session) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+  try {
+    await connectDB();
+    const { searchParams } = new URL(req.url);
+    const olderThanDays = parseInt(searchParams.get("olderThanDays") || "0");
+
+    let filter: Record<string, unknown> = {};
+    if (olderThanDays > 0) {
+      const cutoff = new Date(Date.now() - olderThanDays * 86_400_000);
+      filter = { createdAt: { $lt: cutoff } };
+    }
+
+    const result = await Order.deleteMany(filter);
+    return NextResponse.json({ success: true, deleted: result.deletedCount });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Failed to purge orders";
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+  }
+}

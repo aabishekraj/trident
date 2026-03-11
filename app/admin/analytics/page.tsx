@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { IAnalyticsSummary } from "@/types"
+import { useCurrency } from "@/context/CurrencyContext"
 
 // ── Mini bar chart ────────────────────────────────────────────────────────────
 function BarChart({ data, color = "#e5202e" }: { data: { label: string; value: number }[]; color?: string }) {
@@ -30,6 +31,7 @@ function Tile({ label, value, color }: { label: string; value: string; color?: s
 
 // ── Analytics Page ────────────────────────────────────────────────────────────
 export default function AnalyticsPage() {
+  const { fmt } = useCurrency()
   const [data,    setData]    = useState<IAnalyticsSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState("")
@@ -77,9 +79,9 @@ export default function AnalyticsPage() {
 
       {/* KPI row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: "1px", background: "#1e1e1e", marginBottom: "2.5rem" }}>
-        <Tile label="Total Revenue"    value={`$${d.totalRevenue.toLocaleString()}`}           color="#22c55e" />
-        <Tile label="Total Orders"     value={String(d.totalOrders)}                            color="#3b82f6" />
-        <Tile label="Avg Order Value"  value={`$${Number(d.avgOrderValue).toFixed(2)}`}         color="#a855f7" />
+        <Tile label="Total Revenue"    value={fmt(d.totalRevenue)}              color="#22c55e" />
+        <Tile label="Total Orders"     value={String(d.totalOrders)}            color="#3b82f6" />
+        <Tile label="Avg Order Value"  value={fmt(Number(d.avgOrderValue))}     color="#a855f7" />
         <Tile label="Pending Orders"   value={String(d.pendingOrders)}                          color="#eab308" />
       </div>
 
