@@ -69,7 +69,7 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const symbol = SYMBOLS[cfg.currency]
-  const fmt = (n: number) => `${symbol}${n.toFixed(2)}`
+  const fmt = (n: number) => `${symbol}${(n ?? 0).toFixed(2)}`
 
   const getShipping = (subtotal: number, country?: string): number => {
     if (country) {
