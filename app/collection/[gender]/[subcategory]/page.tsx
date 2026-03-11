@@ -5,6 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useCurrency } from "@/context/CurrencyContext"
+import PromoBanner from "@/components/PromoBanner"
 
 type Product = {
   _id: string; name: string; price: number; image?: string; tag?: string
@@ -103,8 +104,13 @@ export default function SubcategoryPage({ params }: { params: Promise<{ gender: 
         <Link href="/account" style={{ color: "#666", fontSize: ".78rem", fontWeight: 700, letterSpacing: 1, textDecoration: "none" }}>ACCOUNT</Link>
       </nav>
 
+      {/* Promo banner — sits in flow below fixed nav */}
+      <div style={{ marginTop: 60 }}>
+        <PromoBanner />
+      </div>
+
       {/* Breadcrumb + heading */}
-      <div style={{ marginTop: 60, padding: "3rem 2.5rem 2rem" }}>
+      <div style={{ padding: "3rem 2.5rem 2rem" }}>
         <div style={{ display: "flex", gap: ".5rem", alignItems: "center", marginBottom: "1.5rem" }}>
           <Link href="/" style={{ color: "#444", fontSize: ".72rem", fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", textDecoration: "none" }}>Home</Link>
           <span style={{ color: "#333" }}>/</span>

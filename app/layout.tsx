@@ -3,7 +3,7 @@ import { Bebas_Neue, Barlow, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/context/CartContext";
 import { CurrencyProvider } from "@/context/CurrencyContext";
-import PromoBanner from "@/components/PromoBanner";
+
 
 const bebasNeue = Bebas_Neue({
   weight: "400",
@@ -41,7 +41,6 @@ export default function RootLayout({
       <body>
         <CurrencyProvider>
           <CartProvider>
-            <PromoBanner />
             {children}
           </CartProvider>
         </CurrencyProvider>

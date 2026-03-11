@@ -5,6 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useCurrency } from "@/context/CurrencyContext"
+import PromoBanner from "@/components/PromoBanner"
 
 type RecentItem = { _id: string; name: string; price: number; image?: string }
 
@@ -134,8 +135,13 @@ export default function GenderCollectionPage({ params }: { params: Promise<{ gen
         <Link href="/account" style={{ color: "#666", fontSize: ".78rem", fontWeight: 700, letterSpacing: 1, textDecoration: "none" }}>ACCOUNT</Link>
       </nav>
 
+      {/* Promo banner — sits in flow below fixed nav */}
+      <div style={{ marginTop: 60 }}>
+        <PromoBanner />
+      </div>
+
       {/* Hero */}
-      <div style={{ position: "relative", height: 380, marginTop: 60, overflow: "hidden" }}>
+      <div style={{ position: "relative", height: 380, overflow: "hidden" }}>
         <Image src={meta.hero} alt={meta.label} fill style={{ objectFit: "cover", opacity: 0.35 }} unoptimized />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 40%, #0a0a0a 100%)" }} />
         <div style={{ position: "absolute", bottom: "2.5rem", left: "2.5rem" }}>
