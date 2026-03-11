@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { connectDB } from "@/lib/mongodb"
 import Product from "@/models/Product"
+import { checkPermission } from "@/lib/adminAuth"
 
-// POST /api/products/bulk — accepts array of products
+// POST /api/products/bulk — accepts array of products (admin only)
 export async function POST(req: NextRequest) {
+  const err = checkPermission(req, "products", "create")
+  if (err) return NextResponse.json({ success: false, error: err.error }, { status: err.status })
   try {
     await connectDB()
     const body = await req.json()

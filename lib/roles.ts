@@ -8,6 +8,8 @@ export const ROLE_PERMISSIONS: Record<AdminRole, {
   coupons:   { view: boolean; create: boolean; edit: boolean; delete: boolean }
   analytics: boolean
   users:     { view: boolean; create: boolean; edit: boolean; delete: boolean }
+  messages:  boolean
+  settings:  boolean
 }> = {
   superadmin: {
     dashboard: true,
@@ -16,6 +18,8 @@ export const ROLE_PERMISSIONS: Record<AdminRole, {
     coupons:   { view: true,  create: true,  edit: true,  delete: true  },
     analytics: true,
     users:     { view: true,  create: true,  edit: true,  delete: true  },
+    messages:  true,
+    settings:  true,
   },
   manager: {
     dashboard: true,
@@ -24,6 +28,8 @@ export const ROLE_PERMISSIONS: Record<AdminRole, {
     coupons:   { view: true,  create: true,  edit: true,  delete: false },
     analytics: true,
     users:     { view: true,  create: false, edit: false, delete: false },
+    messages:  true,
+    settings:  true,
   },
   order_manager: {
     dashboard: true,
@@ -32,6 +38,8 @@ export const ROLE_PERMISSIONS: Record<AdminRole, {
     coupons:   { view: true,  create: false, edit: false, delete: false },
     analytics: false,
     users:     { view: false, create: false, edit: false, delete: false },
+    messages:  true,
+    settings:  false,
   },
   analyst: {
     dashboard: true,
@@ -40,5 +48,7 @@ export const ROLE_PERMISSIONS: Record<AdminRole, {
     coupons:   { view: true,  create: false, edit: false, delete: false },
     analytics: true,
     users:     { view: false, create: false, edit: false, delete: false },
+    messages:  false,
+    settings:  false,
   },
 }

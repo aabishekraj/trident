@@ -20,6 +20,7 @@ type CartContextType = {
   increaseQty: (id: string, size?: string) => void
   decreaseQty: (id: string, size?: string) => void
   clearCart: () => void
+  applyCoupon: (code: string, discount: number) => void
   cartCount: number
   openCart: () => void
   closeCart: () => void
@@ -105,11 +106,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clearCart = () => setCart([])
 
+  const applyCoupon = (code: string, discount: number) => {
+    setCart(prev => prev.map(item => ({ ...item, couponCode: code, couponDiscount: discount })))
+  }
+
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0)
 
   return (
     <CartContext.Provider value={{
-      cart, addToCart, removeFromCart, increaseQty, decreaseQty, clearCart,
+      cart, addToCart, removeFromCart, increaseQty, decreaseQty, clearCart, applyCoupon,
       cartCount, openCart: () => setCartOpen(true), closeCart: () => setCartOpen(false), cartOpen,
     }}>
       {children}

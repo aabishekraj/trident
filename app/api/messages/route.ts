@@ -14,16 +14,24 @@ export async function POST(req: NextRequest) {
     if (!type || !subject || !message || !customerName || !customerEmail) {
       return NextResponse.json({ success: false, error: "type, subject, message, customerName and customerEmail are required" }, { status: 400 })
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(customerEmail))) {
+      return NextResponse.json({ success: false, error: "Invalid email format" }, { status: 400 })
+    }
+    if (String(message).length > 5000) {
+      return NextResponse.json({ success: false, error: "Message exceeds 5000 characters" }, { status: 400 })
+    }
+
+    const safeMessage     = String(message).slice(0, 5000)
+    const safeCustomerName = String(customerName).slice(0, 100)
 
     const msg = await Message.create({
-      type,
-      subject,
-      message,
-      customerName,
-      customerEmail: customerEmail.toLowerCase(),
-      orderId: orderId || "",
-      // Seed the thread with the customer's opening message
-      comments: [{ from: "customer", authorName: customerName, text: message }],
+      type:          String(type).slice(0, 50),
+      subject:       String(subject).slice(0, 200),
+      message:       safeMessage,
+      customerName:  safeCustomerName,
+      customerEmail: String(customerEmail).toLowerCase().slice(0, 100),
+      orderId:       orderId ? String(orderId).slice(0, 50) : "",
+      comments: [{ from: "customer", authorName: safeCustomerName, text: safeMessage }],
     })
 
     // Notify customer by email (fire-and-forget)
@@ -43,20 +51,25 @@ export async function POST(req: NextRequest) {
   }
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 // GET — admin lists all messages, OR customer looks up their own by email
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
-  const session  = getAdminSession(req)
+  const session   = getAdminSession(req)
   const custEmail = req.headers.get("x-customer-email")?.toLowerCase().trim()
 
   // Customer: fetch their own tickets
   if (!session && custEmail) {
+    if (!EMAIL_RE.test(custEmail)) {
+      return NextResponse.json({ success: false, error: "Invalid email" }, { status: 400 })
+    }
     try {
       await connectDB()
       const msgs = await Message.find({ customerEmail: custEmail }).sort({ createdAt: -1 }).limit(50).lean()
       return NextResponse.json({ success: true, data: msgs })
-    } catch (e) {
-      return NextResponse.json({ success: false, error: String(e) }, { status: 500 })
+    } catch {
+      return NextResponse.json({ success: false, error: "Failed to fetch tickets" }, { status: 500 })
     }
   }
 

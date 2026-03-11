@@ -73,8 +73,9 @@ export async function PUT(req: NextRequest, { params }: P) {
 
     // ── Customer path: add follow-up comment ──────────────────────────────────
     if (custEmail && msg.customerEmail === custEmail) {
-      const text = (body.comment || "").trim()
+      const text = String(body.comment || "").trim()
       if (!text) return NextResponse.json({ success: false, error: "comment required" }, { status: 400 })
+      if (text.length > 5000) return NextResponse.json({ success: false, error: "Comment exceeds 5000 characters" }, { status: 400 })
 
       // Re-open if it was closed/resolved
       if (msg.status === "closed" || msg.status === "resolved") msg.status = "in_progress"

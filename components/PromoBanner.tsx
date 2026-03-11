@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { usePathname } from "next/navigation"
 
-const MESSAGES = [
+const DEFAULT_MESSAGES = [
   "🚚 FREE SHIPPING ON ORDERS OVER $500",
   "⚡ LIMITED DROPS — SHOP BEFORE THEY'RE GONE",
   "↩  30-DAY HASSLE-FREE RETURNS",
@@ -10,9 +11,23 @@ const MESSAGES = [
 ]
 
 export default function PromoBanner() {
+  const pathname = usePathname()
   const [dismissed, setDismissed] = useState(false)
+  const [messages, setMessages] = useState<string[]>(DEFAULT_MESSAGES)
 
-  if (dismissed) return null
+  useEffect(() => {
+    if (pathname?.startsWith("/admin")) return
+    fetch("/api/settings")
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && Array.isArray(d.data?.promoBannerMessages) && d.data.promoBannerMessages.length) {
+          setMessages(d.data.promoBannerMessages)
+        }
+      })
+      .catch(() => {})
+  }, [pathname])
+
+  if (dismissed || pathname?.startsWith("/admin")) return null
 
   return (
     <div style={{
@@ -32,7 +47,7 @@ export default function PromoBanner() {
         whiteSpace: "nowrap",
         willChange: "transform",
       }}>
-        {[...MESSAGES, ...MESSAGES].map((msg, i) => (
+        {[...messages, ...messages].map((msg, i) => (
           <span key={i} style={{ fontSize: ".68rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", padding: "0 3rem" }}>
             {msg}
           </span>

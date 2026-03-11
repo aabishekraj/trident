@@ -2,36 +2,55 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Order from "@/models/Order";
 import { sendOrderConfirmation } from "@/lib/email";
+import { getAdminSession } from "@/lib/adminAuth";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // ─── GET /api/orders ──────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
+  const session    = getAdminSession(req);
+  const custHeader = req.headers.get("x-customer-email")?.toLowerCase().trim();
+
+  // Require admin session OR valid customer email header
+  if (!session && !custHeader) {
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  }
+  if (!session && custHeader && !EMAIL_RE.test(custHeader)) {
+    return NextResponse.json({ success: false, error: "Invalid email" }, { status: 400 });
+  }
+
   try {
     await connectDB();
 
     const { searchParams } = new URL(req.url);
     const status  = searchParams.get("status")  || "";
     const search  = searchParams.get("search")  || "";
-    const email   = searchParams.get("email")   || "";
-    const page    = parseInt(searchParams.get("page")  || "1");
-    const limit   = parseInt(searchParams.get("limit") || "20");
+    const page    = Math.max(1, parseInt(searchParams.get("page")  || "1"));
+    const limit   = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "20")));
 
     const filter: Record<string, unknown> = {};
-    if (status) filter.status = status;
-    if (email)  filter["customer.email"] = email.toLowerCase();
-    if (search) {
-      filter.$or = [
-        { orderId: { $regex: search, $options: "i" } },
-        { "customer.name":  { $regex: search, $options: "i" } },
-        { "customer.email": { $regex: search, $options: "i" } },
-      ];
+
+    if (session) {
+      // Admin: allow filtering by email/search/status
+      const emailParam = searchParams.get("email") || "";
+      if (emailParam && EMAIL_RE.test(emailParam)) {
+        filter["customer.email"] = emailParam.toLowerCase();
+      }
+      if (status) filter.status = status;
+      if (search) {
+        filter.$or = [
+          { orderId: { $regex: search.replace(/[$()*+?.\\^{}|[\]]/g, "\\$&"), $options: "i" } },
+          { "customer.name":  { $regex: search.replace(/[$()*+?.\\^{}|[\]]/g, "\\$&"), $options: "i" } },
+          { "customer.email": { $regex: search.replace(/[$()*+?.\\^{}|[\]]/g, "\\$&"), $options: "i" } },
+        ];
+      }
+    } else {
+      // Customer: only their own orders
+      filter["customer.email"] = custHeader;
     }
 
     const [orders, total] = await Promise.all([
-      Order.find(filter)
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean(),
+      Order.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
       Order.countDocuments(filter),
     ]);
 
@@ -40,8 +59,7 @@ export async function GET(req: NextRequest) {
       data: orders,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
-  } catch (error) {
-    console.error("[GET /api/orders]", error);
+  } catch {
     return NextResponse.json({ success: false, error: "Failed to fetch orders" }, { status: 500 });
   }
 }

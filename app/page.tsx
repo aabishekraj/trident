@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
+import { useCart } from "@/context/CartContext"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Product = {
@@ -12,7 +13,6 @@ type Product = {
   sizes?: string[]; stockStatus?: "active" | "sold_out" | "coming_soon"
   couponCode?: string; couponDiscount?: number
 }
-type CartItem = Product & { qty: number; selectedSize?: string }
 type Customer = { name: string; email: string; token: string }
 
 // ── Nav structure ─────────────────────────────────────────────────────────────
@@ -80,16 +80,15 @@ const MARQUEE = ["PERFORMANCE","★","INNOVATION","★","TRIDENT","★","JUST DO
 function safeImg(url?: string) {
   return url && (url.startsWith("http") || url.startsWith("data:")) ? url : "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80"
 }
-function finalPrice(p: Product) {
+function finalPrice(p: { price: number; couponDiscount?: number }) {
   return p.couponDiscount ? +(p.price * (1 - p.couponDiscount / 100)).toFixed(2) : p.price
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const router = useRouter()
+  const { cart, addToCart: ctxAdd, removeFromCart: ctxRemove, applyCoupon: ctxApplyCoupon, cartCount, openCart, closeCart, cartOpen } = useCart()
   const [products, setProducts]   = useState<Product[]>([])
-  const [cart, setCart]           = useState<CartItem[]>([])
-  const [cartOpen, setCartOpen]   = useState(false)
   const [couponCode, setCouponCode] = useState("")
   const [couponMsg, setCouponMsg]   = useState("")
   const [couponOk, setCouponOk]     = useState(false)
@@ -120,9 +119,8 @@ export default function HomePage() {
       .catch(() => setProducts(FALLBACK))
   }, [])
 
-  // Cart derived
-  const cartCount = cart.reduce((s, i) => s + i.qty, 0)
-  const cartSubtotal = cart.reduce((s, i) => s + finalPrice(i) * i.qty, 0)
+  // Cart derived (CartContext provides cartCount; compute subtotal locally)
+  const cartSubtotal = cart.reduce((s, i) => s + finalPrice(i) * i.quantity, 0)
 
   function openSizeModal(p: Product) {
     if (p.stockStatus === "sold_out" || p.stockStatus === "coming_soon") return
@@ -131,33 +129,27 @@ export default function HomePage() {
   }
 
   function addToCart(product: Product, size?: string) {
-    const key = product._id + (size || "")
-    setCart(prev => {
-      const ex = prev.find(x => x._id + (x.selectedSize || "") === key)
-      if (ex) return prev.map(x => x._id + (x.selectedSize || "") === key ? { ...x, qty: x.qty + 1 } : x)
-      return [...prev, { ...product, qty: 1, selectedSize: size }]
+    ctxAdd({
+      id: product._id,
+      name: product.name,
+      price: product.price,
+      image: product.image,
+      size,
+      couponDiscount: product.couponDiscount,
+      couponCode: product.couponCode,
     })
     setSizeModal(null)
-  }
-
-  function removeFromCart(key: string) {
-    setCart(prev => prev.filter(x => x._id + (x.selectedSize || "") !== key))
   }
 
   async function applyCoupon() {
     if (!couponCode.trim()) return
     try {
-      const res = await fetch(`/api/coupons/validate?code=${couponCode.trim()}`)
+      const res = await fetch(`/api/coupons/validate?code=${encodeURIComponent(couponCode.trim())}`)
       const j = await res.json()
       if (j.success) {
         setCouponOk(true)
         setCouponMsg(`✓ ${j.data.discount}% off applied!`)
-        // Apply to cart items
-        setCart(prev => prev.map(item => ({
-          ...item,
-          couponCode: j.data.code,
-          couponDiscount: j.data.discount,
-        })))
+        ctxApplyCoupon(j.data.code, j.data.discount)
       } else {
         setCouponOk(false)
         setCouponMsg("Invalid or expired coupon.")
@@ -169,10 +161,9 @@ export default function HomePage() {
 
   function handleCheckout() {
     if (!cart.length) return
-    // Save cart to sessionStorage for checkout page
-    sessionStorage.setItem("trident_cart", JSON.stringify(cart))
+    // CartContext already syncs to sessionStorage("trident_cart") on every change
     sessionStorage.setItem("trident_cart_total", String(cartSubtotal.toFixed(2)))
-    setCartOpen(false)
+    closeCart()
     router.push("/checkout")
   }
 
@@ -297,7 +288,7 @@ export default function HomePage() {
           )}
 
           {/* Cart */}
-          <button onClick={() => setCartOpen(true)} style={{
+          <button onClick={openCart} style={{
             position: "relative", background: "none", border: "none",
             color: "#f5f5f5", fontSize: "1.15rem", cursor: "pointer", padding: "4px",
           }}>
@@ -471,7 +462,7 @@ export default function HomePage() {
       )}
 
       {/* ══ CART OVERLAY ══════════════════════════════════════════════════════ */}
-      {cartOpen && <div onClick={() => setCartOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.75)", zIndex: 1400 }} />}
+      {cartOpen && <div onClick={closeCart} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.75)", zIndex: 1400 }} />}
 
       {/* ══ CART DRAWER ═══════════════════════════════════════════════════════ */}
       <div className={`cart-drawer ${cartOpen ? "open" : ""}`}
@@ -479,7 +470,7 @@ export default function HomePage() {
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1.4rem 1.5rem", borderBottom: "1px solid #1e1e1e" }}>
           <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.5rem", letterSpacing: 3 }}>YOUR BAG ({cartCount})</span>
-          <button onClick={() => setCartOpen(false)} style={{ background: "none", border: "none", color: "#f5f5f5", fontSize: "1.4rem", cursor: "pointer" }}>✕</button>
+          <button onClick={closeCart} style={{ background: "none", border: "none", color: "#f5f5f5", fontSize: "1.4rem", cursor: "pointer" }}>✕</button>
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "1rem 1.5rem" }}>
@@ -487,32 +478,31 @@ export default function HomePage() {
             <div style={{ textAlign: "center", padding: "4rem 0", color: "#555" }}>
               <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🛒</div>
               <div style={{ fontSize: ".9rem" }}>Your bag is empty</div>
-              <button onClick={() => { setCartOpen(false); document.getElementById("featured")?.scrollIntoView({ behavior: "smooth" }) }}
+              <button onClick={() => { closeCart(); document.getElementById("featured")?.scrollIntoView({ behavior: "smooth" }) }}
                 style={{ marginTop: "1.5rem", background: "none", border: "1px solid #222", color: "#888", padding: ".6rem 1.5rem", fontFamily: "'Barlow', sans-serif", fontSize: ".78rem", fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", cursor: "pointer" }}>
                 CONTINUE SHOPPING
               </button>
             </div>
           ) : cart.map(item => {
-            const key = item._id + (item.selectedSize || "")
             const fp = finalPrice(item)
             return (
-              <div key={key} style={{ display: "flex", gap: "1rem", padding: "1rem 0", borderBottom: "1px solid #141414" }}>
+              <div key={item.id + (item.size || "")} style={{ display: "flex", gap: "1rem", padding: "1rem 0", borderBottom: "1px solid #141414" }}>
                 <div style={{ position: "relative", width: 80, height: 80, background: "#111", flexShrink: 0 }}>
                   <Image src={safeImg(item.image)} alt={item.name} fill style={{ objectFit: "cover" }} unoptimized />
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: ".88rem", marginBottom: ".2rem" }}>{item.name}</div>
-                  {item.selectedSize && <div style={{ color: "#666", fontSize: ".75rem", marginBottom: ".3rem" }}>Size: {item.selectedSize}</div>}
+                  {item.size && <div style={{ color: "#666", fontSize: ".75rem", marginBottom: ".3rem" }}>Size: {item.size}</div>}
                   <div style={{ display: "flex", alignItems: "center", gap: ".5rem" }}>
                     <span style={{ fontWeight: 700, fontSize: ".9rem" }}>${fp}</span>
                     {item.couponDiscount && <span style={{ color: "#888", fontSize: ".75rem", textDecoration: "line-through" }}>${item.price}</span>}
                   </div>
                   {item.couponDiscount && <div style={{ color: "#e5202e", fontSize: ".72rem", fontWeight: 700, marginTop: ".2rem" }}>-{item.couponDiscount}% applied</div>}
                   <div style={{ display: "flex", alignItems: "center", gap: ".5rem", marginTop: ".5rem" }}>
-                    <span style={{ color: "#666", fontSize: ".8rem" }}>Qty: {item.qty}</span>
+                    <span style={{ color: "#666", fontSize: ".8rem" }}>Qty: {item.quantity}</span>
                   </div>
                 </div>
-                <button onClick={() => removeFromCart(key)} style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: ".9rem", alignSelf: "flex-start", transition: "color .2s" }}
+                <button onClick={() => ctxRemove(item.id, item.size)} style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: ".9rem", alignSelf: "flex-start", transition: "color .2s" }}
                   onMouseEnter={e => (e.currentTarget.style.color = "#e5202e")}
                   onMouseLeave={e => (e.currentTarget.style.color = "#444")}>✕</button>
               </div>
@@ -552,7 +542,7 @@ export default function HomePage() {
           </button>
           {!customer && (
             <p style={{ textAlign: "center", fontSize: ".75rem", color: "#555" }}>
-              <Link href="/signin" style={{ color: "#e5202e", textDecoration: "none" }} onClick={() => setCartOpen(false)}>Sign in</Link>
+              <Link href="/signin" style={{ color: "#e5202e", textDecoration: "none" }} onClick={closeCart}>Sign in</Link>
               {" "}to track your order
             </p>
           )}

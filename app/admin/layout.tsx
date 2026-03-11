@@ -7,13 +7,14 @@ import { AdminSessionProvider, useAdminSession } from "@/context/AdminSessionCon
 import { ROLE_PERMISSIONS, AdminRole } from "@/lib/roles"
 
 const NAV: { href: string; icon: string; label: string; permKey: keyof typeof ROLE_PERMISSIONS[AdminRole] }[] = [
-  { href: "/admin",           icon: "▦",  label: "Dashboard",  permKey: "dashboard"  },
-  { href: "/admin/orders",    icon: "📦", label: "Orders",     permKey: "orders"     },
-  { href: "/admin/products",  icon: "👟", label: "Products",   permKey: "products"   },
-  { href: "/admin/messages",  icon: "💬", label: "Messages",   permKey: "orders"     },
-  { href: "/admin/coupons",   icon: "🏷️", label: "Coupons",    permKey: "coupons"    },
-  { href: "/admin/analytics", icon: "📈", label: "Analytics",  permKey: "analytics"  },
-  { href: "/admin/users",     icon: "👤", label: "Users",      permKey: "users"      },
+  { href: "/admin",            icon: "▦",  label: "Dashboard",  permKey: "dashboard"  },
+  { href: "/admin/orders",     icon: "📦", label: "Orders",     permKey: "orders"     },
+  { href: "/admin/products",   icon: "👟", label: "Products",   permKey: "products"   },
+  { href: "/admin/messages",   icon: "💬", label: "Messages",   permKey: "messages"   },
+  { href: "/admin/coupons",    icon: "🏷️", label: "Coupons",    permKey: "coupons"    },
+  { href: "/admin/analytics",  icon: "📈", label: "Analytics",  permKey: "analytics"  },
+  { href: "/admin/settings",   icon: "⚙️",  label: "Settings",   permKey: "settings"   },
+  { href: "/admin/users",      icon: "👤", label: "Users",      permKey: "users"      },
 ]
 
 function hasAccess(role: AdminRole, permKey: string): boolean {
