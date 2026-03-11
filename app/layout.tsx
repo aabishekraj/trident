@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Bebas_Neue, Barlow, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/context/CartContext";
+import { CurrencyProvider } from "@/context/CurrencyContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import PromoBanner from "@/components/PromoBanner";
 
 const bebasNeue = Bebas_Neue({
@@ -38,10 +40,14 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${bebasNeue.variable} ${barlow.variable} ${barlowCondensed.variable}`}>
       <body>
-        <CartProvider>
-          <PromoBanner />
-          {children}
-        </CartProvider>
+        <ThemeProvider>
+          <CurrencyProvider>
+            <CartProvider>
+              <PromoBanner />
+              {children}
+            </CartProvider>
+          </CurrencyProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

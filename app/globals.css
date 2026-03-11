@@ -10,6 +10,41 @@
   --hover:  #ff3040;
 }
 
+/* ── Light mode overrides ─────────────────────────────────────────── */
+[data-theme="light"] {
+  --black:  #f8f8f8;
+  --white:  #0a0a0a;
+  --border: #e0e0e0;
+  --light:  #ffffff;
+  --gray:   #666666;
+  /* --red and --hover stay red */
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: #ccc; }
+
+[data-theme="light"] .trident-input {
+  background: #ffffff;
+  border-color: #e0e0e0;
+  color: #0a0a0a;
+}
+[data-theme="light"] .trident-input::placeholder { color: #aaa; }
+[data-theme="light"] .trident-input:focus { border-color: #bbb; }
+
+[data-theme="light"] .nav-link  { color: #555; }
+[data-theme="light"] .nav-link:hover { color: #0a0a0a; }
+
+[data-theme="light"] .size-chip { border-color: #e0e0e0; color: #555; }
+[data-theme="light"] .size-chip:hover,
+[data-theme="light"] .size-chip.selected { border-color: #e5202e; color: #e5202e; }
+
+[data-theme="light"] .footer-link       { color: #777; }
+[data-theme="light"] .footer-link:hover { color: #0a0a0a; }
+
+[data-theme="light"] .admin-nav-link { color: #555; }
+[data-theme="light"] .admin-nav-link:hover  { color: #0a0a0a; background: rgba(0,0,0,.04); }
+[data-theme="light"] .admin-nav-link.active { color: #0a0a0a; background: rgba(0,0,0,.06); border-left-color: #e5202e; }
+/* ────────────────────────────────────────────────────────────────── */
+
 html { scroll-behavior: smooth; }
 
 html, body {
@@ -182,4 +217,29 @@ html, body {
   border-color: #e5202e;
   color: #e5202e;
   background: rgba(229,32,46,.08);
+}
+
+/* Theme toggle button */
+.theme-toggle-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--light);
+  color: #e5202e;
+  font-family: var(--font-bebas), 'Bebas Neue', sans-serif;
+  font-size: .82rem;
+  letter-spacing: 1px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.theme-toggle-btn:hover {
+  background: #e5202e;
+  color: #fff;
+  border-color: #e5202e;
 }

@@ -27,13 +27,56 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const { promoBannerMessages } = body as { promoBannerMessages?: unknown }
+  const {
+    promoBannerMessages,
+    currency,
+    shippingFreeThreshold,
+    shippingFlatRate,
+    shippingCountryRates,
+    taxRate,
+  } = body as {
+    promoBannerMessages?: unknown
+    currency?: unknown
+    shippingFreeThreshold?: unknown
+    shippingFlatRate?: unknown
+    shippingCountryRates?: unknown
+    taxRate?: unknown
+  }
 
+  // Validate promoBannerMessages
   if (promoBannerMessages !== undefined && !Array.isArray(promoBannerMessages)) {
     return NextResponse.json({ error: "promoBannerMessages must be an array" }, { status: 400 })
   }
 
-  // Sanitize: strings only, max 200 chars each, max 20 items, no HTML tags
+  // Validate currency
+  if (currency !== undefined && !["USD", "INR", "EUR"].includes(currency as string)) {
+    return NextResponse.json({ error: "currency must be USD, INR, or EUR" }, { status: 400 })
+  }
+
+  // Validate numeric fields
+  if (shippingFreeThreshold !== undefined && (typeof shippingFreeThreshold !== "number" || shippingFreeThreshold < 0)) {
+    return NextResponse.json({ error: "shippingFreeThreshold must be a non-negative number" }, { status: 400 })
+  }
+  if (shippingFlatRate !== undefined && (typeof shippingFlatRate !== "number" || shippingFlatRate < 0)) {
+    return NextResponse.json({ error: "shippingFlatRate must be a non-negative number" }, { status: 400 })
+  }
+  if (taxRate !== undefined && (typeof taxRate !== "number" || taxRate < 0 || taxRate > 100)) {
+    return NextResponse.json({ error: "taxRate must be between 0 and 100" }, { status: 400 })
+  }
+
+  // Validate shippingCountryRates
+  if (shippingCountryRates !== undefined) {
+    if (!Array.isArray(shippingCountryRates)) {
+      return NextResponse.json({ error: "shippingCountryRates must be an array" }, { status: 400 })
+    }
+    for (const r of shippingCountryRates as unknown[]) {
+      if (typeof (r as { country?: unknown }).country !== "string" || typeof (r as { rate?: unknown }).rate !== "number") {
+        return NextResponse.json({ error: "Each shippingCountryRate must have country (string) and rate (number)" }, { status: 400 })
+      }
+    }
+  }
+
+  // Sanitize promoBannerMessages
   const sanitize = (arr: unknown[]): string[] =>
     arr
       .filter((s): s is string => typeof s === "string")
@@ -45,7 +88,12 @@ export async function PUT(req: NextRequest) {
   let settings = await SiteSettings.findOne()
   if (!settings) settings = await SiteSettings.create({})
 
-  if (promoBannerMessages) settings.promoBannerMessages = sanitize(promoBannerMessages as unknown[])
+  if (promoBannerMessages !== undefined) settings.promoBannerMessages = sanitize(promoBannerMessages as unknown[])
+  if (currency !== undefined) settings.currency = currency as "USD" | "INR" | "EUR"
+  if (shippingFreeThreshold !== undefined) settings.shippingFreeThreshold = shippingFreeThreshold as number
+  if (shippingFlatRate !== undefined) settings.shippingFlatRate = shippingFlatRate as number
+  if (shippingCountryRates !== undefined) settings.shippingCountryRates = (shippingCountryRates as { country: string; rate: number }[])
+  if (taxRate !== undefined) settings.taxRate = taxRate as number
   settings.updatedAt = new Date()
   await settings.save()
 

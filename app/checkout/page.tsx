@@ -4,6 +4,8 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
+import { useCurrency } from "@/context/CurrencyContext"
+import { useTheme } from "@/context/ThemeContext"
 
 type CartItem = {
   _id: string; name: string; price: number; image?: string
@@ -22,18 +24,21 @@ function finalPrice(p: CartItem) {
   return p.couponDiscount ? +(p.price * (1 - p.couponDiscount / 100)).toFixed(2) : p.price
 }
 
-const INP: React.CSSProperties = {
-  width: "100%", background: "#0d0d0d", border: "1px solid #1e1e1e",
-  color: "#f5f5f5", padding: ".75rem 1rem",
-  fontFamily: "'Barlow', sans-serif", fontSize: ".88rem", outline: "none",
-}
-const LABEL: React.CSSProperties = {
-  display: "block", fontSize: ".7rem", fontWeight: 700,
-  letterSpacing: 2, textTransform: "uppercase", color: "#666", marginBottom: ".4rem",
-}
-
 export default function CheckoutPage() {
   const router = useRouter()
+  const { fmt, getShipping, mismatch, taxRate, currency, shippingFreeThreshold } = useCurrency()
+  const { c } = useTheme()
+
+  const INP: React.CSSProperties = {
+    width: "100%", background: c.input, border: `1px solid ${c.border}`,
+    color: c.text, padding: ".75rem 1rem",
+    fontFamily: "'Barlow', sans-serif", fontSize: ".88rem", outline: "none",
+  }
+  const LABEL: React.CSSProperties = {
+    display: "block", fontSize: ".7rem", fontWeight: 700,
+    letterSpacing: 2, textTransform: "uppercase", color: c.textMuted, marginBottom: ".4rem",
+  }
+
   const [cart, setCart]             = useState<CartItem[]>([])
   const [step, setStep]             = useState<"details" | "payment" | "confirm">("details")
   const [placing, setPlacing]       = useState(false)
@@ -42,6 +47,7 @@ export default function CheckoutPage() {
   const [isGuest, setIsGuest]       = useState(false)
   const [savedAddrs, setSavedAddrs] = useState<SavedAddress[]>([])
   const [saveAddr, setSaveAddr]     = useState(false)
+  const [currencyError, setCurrencyError] = useState("")
 
   const [form, setForm] = useState({
     name: "", email: "", phone: "", address: "", city: "", state: "", zip: "", country: "India",
@@ -60,7 +66,6 @@ export default function CheckoutPage() {
       setForm(f => ({ ...f, name: c.name || "", email: c.email || "" }))
       setIsGuest(false)
 
-      // Load saved addresses
       fetch("/api/addresses", { headers: { "x-customer-email": c.email } })
         .then(r => r.json())
         .then(j => {
@@ -72,7 +77,6 @@ export default function CheckoutPage() {
         })
         .catch(() => {})
 
-      // Save cart for abandoned cart tracking
       if (saved) {
         const items = JSON.parse(saved)
         const total = items.reduce((s: number, i: CartItem) => s + finalPrice(i) * i.qty, 0)
@@ -84,17 +88,29 @@ export default function CheckoutPage() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const subtotal = cart.reduce((s, i) => s + finalPrice(i) * i.qty, 0)
-  const shipping = subtotal > 500 ? 0 : 49
-  const tax      = +(subtotal * 0.18).toFixed(2)
+  const shipping = getShipping(subtotal, form.country)
+  const tax      = +(subtotal * (taxRate / 100)).toFixed(2)
   const total    = +(subtotal + shipping + tax).toFixed(2)
 
-  function setF(key: string, val: string) { setForm(f => ({ ...f, [key]: val })) }
+  function setF(key: string, val: string) {
+    setForm(f => ({ ...f, [key]: val }))
+    if (key === "paymentMethod") {
+      setCurrencyError(mismatch(val) || "")
+    }
+    if (key === "country") {
+      // country change may affect shipping — no error needed
+    }
+  }
 
   function applyAddress(a: SavedAddress) {
     setForm(f => ({ ...f, name: a.name, phone: a.phone, address: a.address, city: a.city, state: a.state, zip: a.zip, country: a.country }))
   }
 
   async function placeOrder() {
+    // Check currency mismatch before placing
+    const misErr = mismatch(form.paymentMethod)
+    if (misErr) { setCurrencyError(misErr); return }
+
     if (!form.name || !form.email || !form.address) return
     setPlacing(true)
     setOrderError("")
@@ -107,7 +123,6 @@ export default function CheckoutPage() {
       const cust = localStorage.getItem("trident_customer")
       const customerEmail = cust ? JSON.parse(cust).email : form.email
 
-      // Optionally save address for logged-in users
       if (!isGuest && saveAddr && form.address) {
         fetch("/api/addresses", {
           method: "POST",
@@ -125,11 +140,11 @@ export default function CheckoutPage() {
             cart: cart.map(i => ({ ...i, price: finalPrice(i) })),
             customer: { name: form.name, email: form.email, phone: form.phone },
             shippingAddress,
+            currency,
           }),
         })
         const j = await res.json()
         if (j.url) {
-          // Mark cart as checked out
           fetch("/api/cart-session", { method: "DELETE", headers: { "x-customer-email": customerEmail } }).catch(() => {})
           sessionStorage.removeItem("trident_cart")
           window.location.href = j.url
@@ -148,6 +163,7 @@ export default function CheckoutPage() {
             paymentMethod: form.paymentMethod,
             paymentStatus: "pending",
             status: "pending",
+            currency,
           }),
         })
         const j = await res.json()
@@ -172,30 +188,30 @@ export default function CheckoutPage() {
   }
 
   if (step === "confirm") return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Barlow', sans-serif", padding: "2rem" }}>
+    <div style={{ minHeight: "100vh", background: c.bg, color: c.text, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Barlow', sans-serif", padding: "2rem" }}>
       <div style={{ textAlign: "center", maxWidth: 480 }}>
         <div style={{ fontSize: "4rem", marginBottom: "1.5rem" }}>✅</div>
         <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "3rem", letterSpacing: 2, marginBottom: ".5rem" }}>ORDER PLACED!</h1>
         <div style={{ color: "#e5202e", fontFamily: "'Barlow Condensed', sans-serif", fontSize: "1.1rem", fontWeight: 700, letterSpacing: 2, marginBottom: "1rem" }}>{orderId}</div>
-        <p style={{ color: "#666", lineHeight: 1.7, marginBottom: "2rem" }}>
-          A confirmation has been sent to <strong style={{ color: "#f5f5f5" }}>{form.email}</strong>.<br />
+        <p style={{ color: c.textMuted, lineHeight: 1.7, marginBottom: "2rem" }}>
+          A confirmation has been sent to <strong style={{ color: c.text }}>{form.email}</strong>.<br />
           Track your order anytime from the link below.
         </p>
-        <div style={{ background: "#0d0d0d", border: "1px solid #1e1e1e", padding: "1.5rem", marginBottom: "2rem", textAlign: "left" }}>
-          <div style={{ fontSize: ".7rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#666", marginBottom: "1rem" }}>Order Summary</div>
+        <div style={{ background: c.surface, border: `1px solid ${c.border}`, padding: "1.5rem", marginBottom: "2rem", textAlign: "left" }}>
+          <div style={{ fontSize: ".7rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: c.textMuted, marginBottom: "1rem" }}>Order Summary</div>
           {cart.map(i => (
             <div key={i._id} style={{ display: "flex", justifyContent: "space-between", marginBottom: ".5rem", fontSize: ".85rem" }}>
-              <span style={{ color: "#888" }}>{i.name} {i.selectedSize && `(${i.selectedSize})`} × {i.qty}</span>
-              <span style={{ fontWeight: 700 }}>${(finalPrice(i) * i.qty).toFixed(2)}</span>
+              <span style={{ color: c.textDim }}>{i.name} {i.selectedSize && `(${i.selectedSize})`} × {i.qty}</span>
+              <span style={{ fontWeight: 700 }}>{fmt(finalPrice(i) * i.qty)}</span>
             </div>
           ))}
-          <div style={{ borderTop: "1px solid #1e1e1e", marginTop: ".75rem", paddingTop: ".75rem", display: "flex", justifyContent: "space-between", fontWeight: 800 }}>
-            <span>TOTAL</span><span style={{ color: "#e5202e" }}>${total}</span>
+          <div style={{ borderTop: `1px solid ${c.border}`, marginTop: ".75rem", paddingTop: ".75rem", display: "flex", justifyContent: "space-between", fontWeight: 800 }}>
+            <span>TOTAL</span><span style={{ color: "#e5202e" }}>{fmt(total)}</span>
           </div>
         </div>
         <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
-          <Link href="/" style={{ background: "#f5f5f5", color: "#0a0a0a", padding: ".8rem 2rem", fontWeight: 800, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none" }}>KEEP SHOPPING</Link>
-          <Link href={orderId ? `/track?id=${orderId}` : "/track"} style={{ border: "1px solid #222", color: "#888", padding: ".8rem 2rem", fontWeight: 700, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none" }}>TRACK ORDER</Link>
+          <Link href="/" style={{ background: c.text, color: c.bg, padding: ".8rem 2rem", fontWeight: 800, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none" }}>KEEP SHOPPING</Link>
+          <Link href={orderId ? `/track?id=${orderId}` : "/track"} style={{ border: `1px solid ${c.border}`, color: c.textDim, padding: ".8rem 2rem", fontWeight: 700, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none" }}>TRACK ORDER</Link>
         </div>
         {isGuest && (
           <div style={{ marginTop: "1.5rem", background: "rgba(59,130,246,.08)", border: "1px solid rgba(59,130,246,.2)", padding: "1rem", fontSize: ".78rem", color: "#3b82f6" }}>
@@ -207,18 +223,17 @@ export default function CheckoutPage() {
   )
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Barlow', sans-serif" }}>
-      <nav style={{ position: "sticky", top: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2.5rem", height: 64, background: "rgba(10,10,10,0.97)", borderBottom: "1px solid #1e1e1e" }}>
-        <Link href="/" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.8rem", letterSpacing: 4, color: "#f5f5f5", textDecoration: "none" }}>TRIDENT</Link>
-        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: "1rem", letterSpacing: 3, textTransform: "uppercase", color: "#666" }}>CHECKOUT</div>
-        <Link href="/" style={{ color: "#666", fontSize: ".78rem", fontWeight: 700, letterSpacing: 1, textDecoration: "none" }}>✕ CANCEL</Link>
+    <div style={{ minHeight: "100vh", background: c.bg, color: c.text, fontFamily: "'Barlow', sans-serif" }}>
+      <nav style={{ position: "sticky", top: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2.5rem", height: 64, background: c.nav, borderBottom: `1px solid ${c.border}` }}>
+        <Link href="/" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.8rem", letterSpacing: 4, color: c.text, textDecoration: "none" }}>TRIDENT</Link>
+        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: "1rem", letterSpacing: 3, textTransform: "uppercase", color: c.textMuted }}>CHECKOUT</div>
+        <Link href="/" style={{ color: c.textMuted, fontSize: ".78rem", fontWeight: 700, letterSpacing: 1, textDecoration: "none" }}>✕ CANCEL</Link>
       </nav>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "3rem 2rem", display: "grid", gridTemplateColumns: "1fr 380px", gap: "3rem" }}>
 
         {/* Left: Form */}
         <div>
-          {/* Guest banner */}
           {isGuest && (
             <div style={{ background: "rgba(234,179,8,.08)", border: "1px solid rgba(234,179,8,.25)", padding: ".85rem 1rem", marginBottom: "2rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: ".5rem" }}>
               <span style={{ fontSize: ".78rem", color: "#eab308" }}>🛒 Checking out as guest</span>
@@ -226,11 +241,10 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          {/* Steps */}
           <div style={{ display: "flex", gap: "2rem", marginBottom: "2.5rem" }}>
             {[["details","DETAILS"],["payment","PAYMENT"]].map(([s, l]) => (
               <button key={s} onClick={() => step === "payment" && s === "details" && setStep("details")}
-                style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: "1rem", letterSpacing: 2, textTransform: "uppercase", background: "none", border: "none", color: step === s ? "#f5f5f5" : "#444", cursor: "pointer", paddingBottom: ".4rem", borderBottom: step === s ? "2px solid #e5202e" : "2px solid transparent" }}>
+                style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: "1rem", letterSpacing: 2, textTransform: "uppercase", background: "none", border: "none", color: step === s ? c.text : c.border, cursor: "pointer", paddingBottom: ".4rem", borderBottom: step === s ? "2px solid #e5202e" : "2px solid transparent" }}>
                 {l}
               </button>
             ))}
@@ -245,15 +259,14 @@ export default function CheckoutPage() {
               </div>
               <div style={{ marginBottom: "1rem" }}><label style={LABEL}>Phone</label><input style={INP} value={form.phone} onChange={e => setF("phone", e.target.value)} placeholder="+91 98765 43210" /></div>
 
-              {/* Saved addresses (logged-in only) */}
               {!isGuest && savedAddrs.length > 0 && (
                 <div style={{ marginBottom: "1.5rem" }}>
-                  <div style={{ fontSize: ".65rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#555", marginBottom: ".75rem" }}>SAVED ADDRESSES</div>
+                  <div style={{ fontSize: ".65rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: c.textMuted, marginBottom: ".75rem" }}>SAVED ADDRESSES</div>
                   <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
                     {savedAddrs.map(a => (
                       <button key={a._id} onClick={() => applyAddress(a)}
-                        style={{ background: form.address === a.address ? "rgba(229,32,46,.1)" : "#0d0d0d", border: `1px solid ${form.address === a.address ? "#e5202e" : "#1e1e1e"}`, color: form.address === a.address ? "#f5f5f5" : "#666", padding: ".5rem 1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".72rem", letterSpacing: 1, cursor: "pointer", textAlign: "left" }}>
-                        <div style={{ color: form.address === a.address ? "#e5202e" : "#888", fontSize: ".6rem", fontWeight: 700, letterSpacing: 1.5, marginBottom: ".2rem" }}>{a.label}</div>
+                        style={{ background: form.address === a.address ? "rgba(229,32,46,.1)" : c.surface, border: `1px solid ${form.address === a.address ? "#e5202e" : c.border}`, color: form.address === a.address ? c.text : c.textMuted, padding: ".5rem 1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".72rem", letterSpacing: 1, cursor: "pointer", textAlign: "left" }}>
+                        <div style={{ color: form.address === a.address ? "#e5202e" : c.textDim, fontSize: ".6rem", fontWeight: 700, letterSpacing: 1.5, marginBottom: ".2rem" }}>{a.label}</div>
                         <div style={{ fontSize: ".72rem" }}>{a.address}, {a.city}</div>
                       </button>
                     ))}
@@ -271,16 +284,15 @@ export default function CheckoutPage() {
                 <div><label style={LABEL}>PIN Code</label><input style={INP} value={form.zip} onChange={e => setF("zip", e.target.value)} placeholder="600001" /></div>
                 <div><label style={LABEL}>Country</label>
                   <select style={{ ...INP, appearance: "none" }} value={form.country} onChange={e => setF("country", e.target.value)}>
-                    {["India","United States","United Kingdom","Singapore","UAE","Australia"].map(c => <option key={c} style={{ background: "#111" }}>{c}</option>)}
+                    {["India","United States","United Kingdom","Singapore","UAE","Australia"].map(ct => <option key={ct} style={{ background: c.surface }}>{ct}</option>)}
                   </select>
                 </div>
               </div>
 
-              {/* Save address checkbox for logged-in users */}
               {!isGuest && (
                 <label style={{ display: "flex", alignItems: "center", gap: ".6rem", marginBottom: "2rem", cursor: "pointer" }}>
                   <input type="checkbox" checked={saveAddr} onChange={e => setSaveAddr(e.target.checked)} style={{ accentColor: "#e5202e", width: 14, height: 14 }} />
-                  <span style={{ fontSize: ".75rem", color: "#666" }}>Save this address for future orders</span>
+                  <span style={{ fontSize: ".75rem", color: c.textMuted }}>Save this address for future orders</span>
                 </label>
               )}
 
@@ -300,11 +312,18 @@ export default function CheckoutPage() {
                 { value: "upi",  label: "📱  UPI" },
                 { value: "cod",  label: "💵  Cash on Delivery" },
               ].map(pm => (
-                <label key={pm.value} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "1rem", border: `1px solid ${form.paymentMethod === pm.value ? "#e5202e" : "#1e1e1e"}`, marginBottom: ".75rem", cursor: "pointer", background: form.paymentMethod === pm.value ? "rgba(229,32,46,.06)" : "transparent" }}>
+                <label key={pm.value} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "1rem", border: `1px solid ${form.paymentMethod === pm.value ? "#e5202e" : c.border}`, marginBottom: ".75rem", cursor: "pointer", background: form.paymentMethod === pm.value ? "rgba(229,32,46,.06)" : "transparent" }}>
                   <input type="radio" name="pm" value={pm.value} checked={form.paymentMethod === pm.value} onChange={e => setF("paymentMethod", e.target.value)} style={{ accentColor: "#e5202e" }} />
                   <span style={{ fontWeight: 700, fontSize: ".88rem" }}>{pm.label}</span>
                 </label>
               ))}
+
+              {/* Currency mismatch error */}
+              {currencyError && (
+                <div style={{ background: "rgba(229,32,46,.1)", border: "1px solid rgba(229,32,46,.4)", padding: "1rem", color: "#e5202e", fontSize: ".82rem", fontWeight: 600, lineHeight: 1.6, marginBottom: "1rem" }}>
+                  ⚠ {currencyError}
+                </div>
+              )}
 
               {form.paymentMethod === "card" && (
                 <div style={{ marginTop: "1.5rem" }}>
@@ -322,7 +341,7 @@ export default function CheckoutPage() {
               )}
 
               {form.paymentMethod === "cod" && (
-                <div style={{ marginTop: "1.5rem", background: "#0d0d0d", border: "1px solid #1e1e1e", padding: "1rem", fontSize: ".85rem", color: "#888" }}>
+                <div style={{ marginTop: "1.5rem", background: c.surface, border: `1px solid ${c.border}`, padding: "1rem", fontSize: ".85rem", color: c.textDim }}>
                   ₹49 COD fee applies. Payment collected at delivery.
                 </div>
               )}
@@ -332,52 +351,55 @@ export default function CheckoutPage() {
                   ⚠ {orderError}
                 </div>
               )}
-              <button onClick={placeOrder} disabled={placing}
-                style={{ width: "100%", background: placing ? "#555" : "#e5202e", color: "#fff", border: "none", padding: "1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".85rem", letterSpacing: 2, textTransform: "uppercase", cursor: placing ? "not-allowed" : "pointer", marginTop: "1rem" }}>
-                {placing ? "PLACING ORDER…" : `PLACE ORDER — $${total}`}
+
+              <button
+                onClick={placeOrder}
+                disabled={placing || !!currencyError}
+                style={{ width: "100%", background: (placing || !!currencyError) ? "#555" : "#e5202e", color: "#fff", border: "none", padding: "1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".85rem", letterSpacing: 2, textTransform: "uppercase", cursor: (placing || !!currencyError) ? "not-allowed" : "pointer", marginTop: "1rem" }}>
+                {placing ? "PLACING ORDER…" : `PLACE ORDER — ${fmt(total)}`}
               </button>
-              <p style={{ textAlign: "center", color: "#444", fontSize: ".75rem", marginTop: ".75rem" }}>🔒 SSL encrypted. Your payment info is safe.</p>
+              <p style={{ textAlign: "center", color: c.textMuted, fontSize: ".75rem", marginTop: ".75rem" }}>🔒 SSL encrypted. Your payment info is safe.</p>
             </div>
           )}
         </div>
 
         {/* Right: Order Summary */}
         <div>
-          <div style={{ background: "#0d0d0d", border: "1px solid #1e1e1e", padding: "1.5rem", position: "sticky", top: 80 }}>
+          <div style={{ background: c.surface, border: `1px solid ${c.border}`, padding: "1.5rem", position: "sticky", top: 80 }}>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.3rem", letterSpacing: 2, marginBottom: "1.5rem" }}>ORDER SUMMARY</div>
             <div style={{ maxHeight: 280, overflowY: "auto" }}>
               {cart.map(item => {
                 const fp = finalPrice(item)
                 return (
                   <div key={item._id + item.selectedSize} style={{ display: "flex", gap: ".75rem", marginBottom: "1rem" }}>
-                    <div style={{ position: "relative", width: 60, height: 60, background: "#111", flexShrink: 0 }}>
+                    <div style={{ position: "relative", width: 60, height: 60, background: c.surface2, flexShrink: 0 }}>
                       <Image src={safeImg(item.image)} alt={item.name} fill style={{ objectFit: "cover" }} unoptimized />
                       <span style={{ position: "absolute", top: -6, right: -6, background: "#e5202e", color: "#fff", width: 18, height: 18, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".6rem", fontWeight: 800 }}>{item.qty}</span>
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: ".82rem", fontWeight: 700 }}>{item.name}</div>
-                      {item.selectedSize && <div style={{ color: "#666", fontSize: ".72rem" }}>Size: {item.selectedSize}</div>}
-                      <div style={{ fontWeight: 700, marginTop: ".2rem" }}>${(fp * item.qty).toFixed(2)}</div>
+                      {item.selectedSize && <div style={{ color: c.textMuted, fontSize: ".72rem" }}>Size: {item.selectedSize}</div>}
+                      <div style={{ fontWeight: 700, marginTop: ".2rem" }}>{fmt(fp * item.qty)}</div>
                     </div>
                   </div>
                 )
               })}
             </div>
-            <div style={{ borderTop: "1px solid #1e1e1e", marginTop: "1rem", paddingTop: "1rem" }}>
-              {[["Subtotal", `$${subtotal.toFixed(2)}`], ["Shipping", shipping === 0 ? "FREE" : `$${shipping}`], ["GST (18%)", `$${tax}`]].map(([l, v]) => (
+            <div style={{ borderTop: `1px solid ${c.border}`, marginTop: "1rem", paddingTop: "1rem" }}>
+              {[["Subtotal", fmt(subtotal)], ["Shipping", shipping === 0 ? "FREE" : fmt(shipping)], [`Tax (${taxRate}%)`, fmt(tax)]].map(([l, v]) => (
                 <div key={l} style={{ display: "flex", justifyContent: "space-between", marginBottom: ".6rem", fontSize: ".85rem" }}>
-                  <span style={{ color: "#666" }}>{l}</span>
-                  <span style={{ color: v === "FREE" ? "#22c55e" : "#f5f5f5", fontWeight: 600 }}>{v}</span>
+                  <span style={{ color: c.textMuted }}>{l}</span>
+                  <span style={{ color: v === "FREE" ? "#22c55e" : c.text, fontWeight: 600 }}>{v}</span>
                 </div>
               ))}
-              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, fontSize: "1.1rem", borderTop: "1px solid #1e1e1e", paddingTop: ".75rem", marginTop: ".5rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, fontSize: "1.1rem", borderTop: `1px solid ${c.border}`, paddingTop: ".75rem", marginTop: ".5rem" }}>
                 <span>TOTAL</span>
-                <span style={{ color: "#e5202e" }}>${total}</span>
+                <span style={{ color: "#e5202e" }}>{fmt(total)}</span>
               </div>
             </div>
-            {subtotal < 500 && (
+            {subtotal < shippingFreeThreshold && (
               <div style={{ marginTop: "1rem", background: "rgba(229,32,46,.08)", border: "1px solid rgba(229,32,46,.2)", padding: ".75rem", fontSize: ".78rem", color: "#e5202e" }}>
-                Add ${(500 - subtotal).toFixed(2)} more for free shipping!
+                Add {fmt(shippingFreeThreshold - subtotal)} more for free shipping!
               </div>
             )}
           </div>
