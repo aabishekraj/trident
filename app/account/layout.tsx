@@ -7,9 +7,11 @@ import Link from "next/link"
 type Customer = { name: string; email: string; token: string }
 
 const NAV = [
-  { href: "/account",          icon: "👤", label: "My Account"  },
-  { href: "/account/orders",   icon: "📦", label: "My Orders"   },
-  { href: "/account/wishlist", icon: "♡",  label: "Wishlist"    },
+  { href: "/account",           icon: "👤", label: "My Account"  },
+  { href: "/account/orders",    icon: "📦", label: "My Orders"   },
+  { href: "/account/wishlist",  icon: "♡",  label: "Wishlist"    },
+  { href: "/account/tickets",   icon: "🎫", label: "My Tickets"  },
+  { href: "/account/addresses", icon: "📍", label: "Addresses"   },
 ]
 
 export default function AccountLayout({ children }: { children: ReactNode }) {

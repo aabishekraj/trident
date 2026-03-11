@@ -237,6 +237,92 @@ export async function sendStatusUpdate(data: OrderEmailData) {
   return sendMail(data.customerEmail, `Order ${data.orderId} — Status: ${label}`, body)
 }
 
+// ─── 5. Ticket Raised (customer confirmation) ─────────────────────────────────
+export async function sendTicketRaised({ ticketId, customerName, customerEmail, subject, message, type, orderId }: {
+  ticketId: string; customerName: string; customerEmail: string
+  subject: string; message: string; type: string; orderId?: string
+}) {
+  const typeLabel: Record<string, string> = {
+    support:             "General Support",
+    cancel_request:      "Cancellation Request",
+    return_request:      "Return Request",
+    replacement_request: "Replacement Request",
+  }
+  const body = `
+    <h1 style="font-size:22px;font-weight:900;letter-spacing:2px;color:#f5f5f5;margin:0 0 8px;">TICKET RECEIVED</h1>
+    <p style="color:#666;font-size:14px;margin:0 0 28px;">Hi ${customerName}, we&apos;ve received your request and will respond within 24–48 hours.</p>
+
+    <div style="background:#0a0a0a;border:1px solid #1e1e1e;padding:16px 20px;margin-bottom:20px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="color:#444;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">Ticket ID</td>
+            <td style="color:#e5202e;font-size:15px;font-weight:900;letter-spacing:2px;text-align:right;">${ticketId}</td></tr>
+        <tr><td style="color:#444;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding-top:10px;">Type</td>
+            <td style="color:#f5f5f5;font-size:13px;font-weight:700;text-align:right;padding-top:10px;">${typeLabel[type] || type}</td></tr>
+        ${orderId ? `<tr><td style="color:#444;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding-top:10px;">Order</td>
+            <td style="color:#f5f5f5;font-size:13px;font-weight:700;text-align:right;padding-top:10px;">${orderId}</td></tr>` : ""}
+        <tr><td style="color:#444;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding-top:10px;">Subject</td>
+            <td style="color:#f5f5f5;font-size:13px;text-align:right;padding-top:10px;">${subject}</td></tr>
+      </table>
+    </div>
+
+    <div style="background:#0a0a0a;border:1px solid #1e1e1e;border-left:3px solid #555;padding:16px 20px;margin-bottom:28px;">
+      <div style="color:#444;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">Your Message</div>
+      <div style="color:#888;font-size:14px;line-height:1.7;">${message.replace(/\n/g, "<br/>")}</div>
+    </div>
+
+    <p style="color:#555;font-size:13px;line-height:1.7;margin:0 0 28px;">Our team will review your request and reply as soon as possible. You can view your ticket and reply from your account.</p>
+
+    <div style="text-align:center;">
+      <a href="${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/account/tickets"
+        style="display:inline-block;background:#e5202e;color:#fff;padding:14px 32px;font-size:12px;font-weight:900;letter-spacing:3px;text-transform:uppercase;text-decoration:none;">
+        VIEW MY TICKETS
+      </a>
+    </div>`
+
+  return sendMail(customerEmail, `Ticket Received — ${ticketId}`, body)
+}
+
+// ─── 6. Admin Reply Notification ──────────────────────────────────────────────
+export async function sendAdminReply({ ticketId, customerName, customerEmail, subject, adminMessage, status }: {
+  ticketId: string; customerName: string; customerEmail: string
+  subject: string; adminMessage: string; status: string
+}) {
+  const statusColor: Record<string, string> = {
+    in_progress: "#3b82f6", resolved: "#22c55e", closed: "#888", read: "#eab308",
+  }
+  const sColor = statusColor[status] || "#888"
+  const body = `
+    <h1 style="font-size:22px;font-weight:900;letter-spacing:2px;color:#f5f5f5;margin:0 0 8px;">RESPONSE FROM TRIDENT SUPPORT</h1>
+    <p style="color:#666;font-size:14px;margin:0 0 28px;">Hi ${customerName}, our support team has responded to your ticket.</p>
+
+    <div style="background:#0a0a0a;border:1px solid #1e1e1e;padding:16px 20px;margin-bottom:20px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="color:#444;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">Ticket ID</td>
+            <td style="color:#e5202e;font-size:15px;font-weight:900;letter-spacing:2px;text-align:right;">${ticketId}</td></tr>
+        <tr><td style="color:#444;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding-top:10px;">Status</td>
+            <td style="color:${sColor};font-size:13px;font-weight:900;text-align:right;padding-top:10px;text-transform:uppercase;">${status.replace("_"," ")}</td></tr>
+        <tr><td style="color:#444;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding-top:10px;">Subject</td>
+            <td style="color:#f5f5f5;font-size:13px;text-align:right;padding-top:10px;">${subject}</td></tr>
+      </table>
+    </div>
+
+    <div style="background:#0a0a0a;border:1px solid #1e1e1e;border-left:3px solid #e5202e;padding:16px 20px;margin-bottom:28px;">
+      <div style="color:#e5202e;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">TRIDENT SUPPORT TEAM</div>
+      <div style="color:#f5f5f5;font-size:14px;line-height:1.75;">${adminMessage.replace(/\n/g, "<br/>")}</div>
+    </div>
+
+    <p style="color:#555;font-size:13px;line-height:1.7;margin:0 0 28px;">You can reply to this ticket directly from your account. If your issue is resolved, no further action is needed.</p>
+
+    <div style="text-align:center;">
+      <a href="${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/account/tickets"
+        style="display:inline-block;background:#e5202e;color:#fff;padding:14px 32px;font-size:12px;font-weight:900;letter-spacing:3px;text-transform:uppercase;text-decoration:none;">
+        REPLY TO TICKET
+      </a>
+    </div>`
+
+  return sendMail(customerEmail, `Support Update — ${ticketId}`, body)
+}
+
 // ─── Internal send helper ──────────────────────────────────────────────────────
 async function sendMail(to: string, subject: string, htmlBody: string) {
   const html = baseTemplate(subject, htmlBody)

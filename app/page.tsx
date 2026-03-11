@@ -103,12 +103,21 @@ export default function HomePage() {
     if (saved) setCustomer(JSON.parse(saved))
   }, [])
 
-  // Fetch featured products (admin-curated, max 10)
+  // Fetch featured products first; fall back to latest 10 if none
   useEffect(() => {
     fetch("/api/products?featured=true&limit=10")
       .then(r => r.json())
-      .then(d => { if (Array.isArray(d) && d.length) setProducts(d) })
-      .catch(() => {})
+      .then(async (d) => {
+        const list = Array.isArray(d) ? d : d?.data
+        if (Array.isArray(list) && list.length) { setProducts(list); return }
+        // No featured products — fall back to latest 10
+        const r2 = await fetch("/api/products?limit=10&sort=newest")
+        const d2 = await r2.json()
+        const list2 = Array.isArray(d2) ? d2 : d2?.data
+        if (Array.isArray(list2) && list2.length) setProducts(list2)
+        else setProducts(FALLBACK)
+      })
+      .catch(() => setProducts(FALLBACK))
   }, [])
 
   // Cart derived
@@ -348,31 +357,95 @@ export default function HomePage() {
       </div>
 
       {/* ══ PRODUCTS ══════════════════════════════════════════════════════════ */}
-      <section id="featured" style={{ padding: "5rem 2.5rem" }}>
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: "3rem" }}>
-          <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(2.5rem,5vw,4rem)", letterSpacing: 2 }}>
-            FEATURED<br /><span style={{ color: "#e5202e" }}>DROPS</span>
-          </h2>
-          <Link href="/collection/men" style={{ color: "#555", fontSize: ".82rem", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", textDecoration: "none", transition: "color .2s" }}
-            onMouseEnter={e => (e.currentTarget.style.color = "#f5f5f5")}
-            onMouseLeave={e => (e.currentTarget.style.color = "#555")}>
-            View All →
-          </Link>
+      <section id="featured" style={{ padding: "6rem 0", background: "#070707" }}>
+        {/* Section header */}
+        <div style={{ padding: "0 2.5rem", maxWidth: 1320, margin: "0 auto 3.5rem" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: "1.5rem" }}>
+            <div>
+              <p style={{ fontSize: ".72rem", fontWeight: 800, letterSpacing: 5, textTransform: "uppercase", color: "#e5202e", marginBottom: ".6rem" }}>New Season — SS 2026</p>
+              <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(2.8rem,6vw,5rem)", letterSpacing: 2, lineHeight: .9 }}>
+                FEATURED<br /><span style={{ color: "#e5202e" }}>DROPS</span>
+              </h2>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: ".75rem" }}>
+              <p style={{ color: "#555", fontSize: ".85rem", maxWidth: 300, textAlign: "right", lineHeight: 1.6 }}>
+                Handpicked drops. Maximum impact. Zero compromise.
+              </p>
+              <Link href="/collection/men" style={{ color: "#888", fontSize: ".78rem", fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", textDecoration: "none", transition: "color .2s", display: "flex", alignItems: "center", gap: ".4rem" }}
+                onMouseEnter={e => (e.currentTarget.style.color = "#f5f5f5")}
+                onMouseLeave={e => (e.currentTarget.style.color = "#888")}>
+                View All →
+              </Link>
+            </div>
+          </div>
         </div>
 
         {products.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "5rem 2rem", border: "1px solid #1e1e1e", color: "#444" }}>
-            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>⭐</div>
-            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.5rem", letterSpacing: 2, marginBottom: ".5rem", color: "#555" }}>NO FEATURED PRODUCTS YET</div>
-            <p style={{ fontSize: ".82rem", lineHeight: 1.6, marginBottom: "1.5rem" }}>Browse our full collection while we curate featured drops.</p>
-            <Link href="/collection/men" style={{ display: "inline-block", background: "#e5202e", color: "#fff", padding: ".75rem 2.5rem", fontWeight: 800, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none" }}>
-              EXPLORE COLLECTION →
-            </Link>
+          <div style={{ textAlign: "center", padding: "5rem 2rem", margin: "0 2.5rem", border: "1px solid #1e1e1e", color: "#444" }}>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.5rem", letterSpacing: 2, marginBottom: ".5rem", color: "#555" }}>LOADING COLLECTION…</div>
+            <p style={{ fontSize: ".82rem", lineHeight: 1.6, marginBottom: "1.5rem" }}>Curating the best drops for you.</p>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: "1.5px", background: "#1e1e1e" }}>
-            {products.map((p, i) => <ProductCard key={p._id} product={p} index={i} onAdd={() => openSizeModal(p)} />)}
-          </div>
+          <>
+            {/* Hero product (first) + side grid */}
+            <div style={{ padding: "0 2.5rem", maxWidth: 1320, margin: "0 auto" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px", marginBottom: "2px" }}>
+                {/* Hero card — spans full height */}
+                <HeroProductCard product={products[0]} onAdd={() => openSizeModal(products[0])} />
+                {/* Right: 2×2 grid of next 4 */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", gap: "2px" }}>
+                  {products.slice(1, 5).map((p, i) => (
+                    <ProductCard key={p._id} product={p} index={i + 1} onAdd={() => openSizeModal(p)} compact />
+                  ))}
+                </div>
+              </div>
+              {/* Bottom row: remaining 5 */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "2px" }}>
+                {products.slice(5, 10).map((p, i) => (
+                  <ProductCard key={p._id} product={p} index={i + 5} onAdd={() => openSizeModal(p)} compact />
+                ))}
+              </div>
+            </div>
+
+            {/* EXPLORE COLLECTIONS CTA */}
+            <div style={{ textAlign: "center", marginTop: "4rem", padding: "0 2.5rem" }}>
+              <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: "1.25rem" }}>
+                <p style={{ color: "#555", fontSize: ".82rem", letterSpacing: 2, textTransform: "uppercase" }}>Discover the full range</p>
+                <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", justifyContent: "center" }}>
+                  <Link href="/collection/men" style={{
+                    background: "#f5f5f5", color: "#0a0a0a", padding: ".9rem 3rem",
+                    fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".8rem",
+                    letterSpacing: 3, textTransform: "uppercase", textDecoration: "none",
+                    transition: "all .2s", display: "inline-block",
+                  }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#e5202e"; (e.currentTarget as HTMLElement).style.color = "#fff" }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "#f5f5f5"; (e.currentTarget as HTMLElement).style.color = "#0a0a0a" }}>
+                    EXPLORE COLLECTIONS
+                  </Link>
+                  <Link href="/collection/women" style={{
+                    background: "transparent", color: "#888", border: "1px solid #2a2a2a",
+                    padding: ".9rem 2rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700,
+                    fontSize: ".8rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none",
+                    transition: "all .2s", display: "inline-block",
+                  }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "#888"; (e.currentTarget as HTMLElement).style.color = "#f5f5f5" }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "#2a2a2a"; (e.currentTarget as HTMLElement).style.color = "#888" }}>
+                    WOMEN&apos;S →
+                  </Link>
+                  <Link href="/collection/men" style={{
+                    background: "transparent", color: "#888", border: "1px solid #2a2a2a",
+                    padding: ".9rem 2rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700,
+                    fontSize: ".8rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none",
+                    transition: "all .2s", display: "inline-block",
+                  }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "#888"; (e.currentTarget as HTMLElement).style.color = "#f5f5f5" }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "#2a2a2a"; (e.currentTarget as HTMLElement).style.color = "#888" }}>
+                    MEN&apos;S →
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </section>
 
@@ -585,8 +658,84 @@ export default function HomePage() {
   )
 }
 
+// ── Hero Product Card (large, left col) ────────────────────────────────────
+function HeroProductCard({ product: p, onAdd }: { product: Product; onAdd: () => void }) {
+  const fp = finalPrice(p)
+  const isSoldOut    = p.stockStatus === "sold_out"
+  const isComingSoon = p.stockStatus === "coming_soon"
+  const [wishlisted, setWishlisted] = useState(false)
+
+  useEffect(() => {
+    const wl: Product[] = JSON.parse(localStorage.getItem("trident_wishlist") || "[]")
+    setWishlisted(wl.some(x => x._id === p._id))
+  }, [p._id])
+
+  function toggleWishlist(e: React.MouseEvent) {
+    e.stopPropagation()
+    const wl: Product[] = JSON.parse(localStorage.getItem("trident_wishlist") || "[]")
+    const updated = wishlisted ? wl.filter(x => x._id !== p._id) : [...wl, p]
+    localStorage.setItem("trident_wishlist", JSON.stringify(updated))
+    setWishlisted(!wishlisted)
+  }
+
+  return (
+    <div style={{ position: "relative", background: "#0d0d0d", overflow: "hidden" }}>
+      <Link href={`/product/${p._id}`} style={{ textDecoration: "none", display: "block" }}>
+        <div style={{ position: "relative", height: 640, overflow: "hidden" }}>
+          <Image src={safeImg(p.image)} alt={p.name} fill style={{ objectFit: "cover", transition: "transform .7s ease" }} unoptimized
+            onMouseEnter={e => ((e.currentTarget as HTMLImageElement).style.transform = "scale(1.04)")}
+            onMouseLeave={e => ((e.currentTarget as HTMLImageElement).style.transform = "scale(1)")}
+          />
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,.85) 0%, rgba(0,0,0,.1) 55%, transparent 100%)" }} />
+          {/* Badges */}
+          <div style={{ position: "absolute", top: "1.25rem", left: "1.25rem", display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
+            {p.tag && !isSoldOut && !isComingSoon && (
+              <span style={{ background: "#e5202e", color: "#fff", fontSize: ".68rem", fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", padding: ".3rem .8rem" }}>{p.tag}</span>
+            )}
+            {p.couponDiscount && (
+              <span style={{ background: "#22c55e", color: "#fff", fontSize: ".68rem", fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", padding: ".3rem .8rem" }}>-{p.couponDiscount}% OFF</span>
+            )}
+          </div>
+          {/* Wishlist */}
+          <button onClick={toggleWishlist}
+            style={{ position: "absolute", top: "1.25rem", right: "1.25rem", width: 36, height: 36, borderRadius: "50%", background: wishlisted ? "#e5202e" : "rgba(0,0,0,.5)", border: `1px solid ${wishlisted ? "#e5202e" : "#333"}`, color: wishlisted ? "#fff" : "#888", fontSize: "1rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all .2s" }}>
+            {wishlisted ? "♥" : "♡"}
+          </button>
+          {/* Status overlay */}
+          {(isSoldOut || isComingSoon) && (
+            <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "2rem", letterSpacing: 4, color: isSoldOut ? "#e5202e" : "#eab308" }}>
+                {isSoldOut ? "SOLD OUT" : "COMING SOON"}
+              </span>
+            </div>
+          )}
+          {/* Bottom overlay text */}
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "2rem 1.75rem" }}>
+            {p.category && <div style={{ fontSize: ".72rem", fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", color: "#e5202ecc", marginBottom: ".5rem" }}>{p.category}</div>}
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(1.8rem,4vw,2.8rem)", letterSpacing: 2, color: "#f5f5f5", lineHeight: 1, marginBottom: ".75rem" }}>{p.name}</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: ".6rem" }}>
+                <span style={{ fontWeight: 800, fontSize: "1.4rem", color: "#f5f5f5" }}>${fp}</span>
+                {p.couponDiscount && <span style={{ color: "#777", fontSize: "1rem", textDecoration: "line-through" }}>${p.price}</span>}
+              </div>
+              {!isSoldOut && !isComingSoon && (
+                <button onClick={e => { e.preventDefault(); onAdd() }}
+                  style={{ background: "#f5f5f5", color: "#0a0a0a", border: "none", padding: ".65rem 1.75rem", fontFamily: "'Barlow', sans-serif", fontSize: ".78rem", fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", cursor: "pointer", transition: "all .2s" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#e5202e"; (e.currentTarget as HTMLElement).style.color = "#fff" }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "#f5f5f5"; (e.currentTarget as HTMLElement).style.color = "#0a0a0a" }}>
+                  ADD TO BAG
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </Link>
+    </div>
+  )
+}
+
 // ── Product Card ──────────────────────────────────────────────────────────────
-function ProductCard({ product: p, index, onAdd }: { product: Product; index: number; onAdd: () => void }) {
+function ProductCard({ product: p, index, onAdd, compact = false }: { product: Product; index: number; onAdd: () => void; compact?: boolean }) {
   const fp = finalPrice(p)
   const isSoldOut    = p.stockStatus === "sold_out"
   const isComingSoon = p.stockStatus === "coming_soon"
@@ -607,9 +756,11 @@ function ProductCard({ product: p, index, onAdd }: { product: Product; index: nu
     setWishlisted(!wishlisted)
   }
 
+  const imgH = compact ? 220 : 320
+
   return (
     <div className="product-card" style={{ background: "#0a0a0a", overflow: "hidden", position: "relative", animationDelay: `${index * 0.07}s` }}>
-      <div style={{ position: "relative", height: 320, background: "#0d0d0d", overflow: "hidden" }}>
+      <div style={{ position: "relative", height: imgH, background: "#0d0d0d", overflow: "hidden" }}>
         <Image src={safeImg(p.image)} alt={p.name} fill style={{ objectFit: "cover", transition: "transform .55s ease" }} unoptimized
           onMouseEnter={e => ((e.currentTarget as HTMLImageElement).style.transform = "scale(1.06)")}
           onMouseLeave={e => ((e.currentTarget as HTMLImageElement).style.transform = "scale(1)")}
