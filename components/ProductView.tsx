@@ -3,6 +3,7 @@
 import { useState } from "react"
 import Image from "next/image"
 import { useCart } from "@/context/CartContext"
+import { useCurrency } from "@/context/CurrencyContext"
 
 type Product = {
   id: string
@@ -15,6 +16,7 @@ type Product = {
 export default function ProductView({ product }: { product: Product }) {
 
   const { addToCart } = useCart()
+  const { fmt } = useCurrency()
 
   const [selectedImage, setSelectedImage] = useState(product.images[0])
   const [selectedSize, setSelectedSize] = useState<string | null>(null)
@@ -95,7 +97,7 @@ export default function ProductView({ product }: { product: Product }) {
           </h1>
 
           <p className="text-xl mb-6">
-            ${product.price}
+            {fmt(product.price)}
           </p>
 
           <p className="text-neutral-400 mb-10">

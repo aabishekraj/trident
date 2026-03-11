@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { useCart } from "@/context/CartContext"
+import { useCurrency } from "@/context/CurrencyContext"
 import RecentlyViewed from "@/components/RecentlyViewed"
 
 type Product = {
@@ -54,6 +55,7 @@ export default function ProductPage() {
   const { id } = useParams() as { id: string }
   const router = useRouter()
   const { addToCart } = useCart()
+  const { fmt, shippingFreeThreshold } = useCurrency()
 
   const [product, setProduct]       = useState<Product | null>(null)
   const [mainImg, setMainImg]       = useState("")
@@ -257,8 +259,8 @@ export default function ProductPage() {
           )}
 
           <div style={{ display: "flex", alignItems: "baseline", gap: ".75rem", marginBottom: "1.5rem" }}>
-            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "2rem", letterSpacing: 1 }}>${finalP.toFixed(2)}</span>
-            {product.couponDiscount ? <span style={{ color: "#555", fontSize: "1rem", textDecoration: "line-through" }}>${product.price.toFixed(2)}</span> : null}
+            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "2rem", letterSpacing: 1 }}>{fmt(finalP)}</span>
+            {product.couponDiscount ? <span style={{ color: "#555", fontSize: "1rem", textDecoration: "line-through" }}>{fmt(product.price)}</span> : null}
           </div>
 
           <p style={{ color: "#888", fontSize: ".88rem", lineHeight: 1.75, marginBottom: "1.75rem", maxWidth: 420 }}>
@@ -314,7 +316,7 @@ export default function ProductPage() {
           )}
 
           <div style={{ borderTop: "1px solid #1a1a1a", paddingTop: "1rem", marginTop: ".5rem", display: "flex", flexDirection: "column", gap: ".4rem" }}>
-            <div style={{ fontSize: ".72rem", color: "#444" }}>🚚 Free shipping on orders over $500</div>
+            <div style={{ fontSize: ".72rem", color: "#444" }}>🚚 Free shipping on orders over {fmt(shippingFreeThreshold)}</div>
             <div style={{ fontSize: ".72rem", color: "#444" }}>↩ 30-day hassle-free returns</div>
             <div style={{ fontSize: ".72rem", color: "#444" }}>✓ Secure checkout with Stripe</div>
           </div>

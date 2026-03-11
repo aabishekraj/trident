@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useCart } from "@/context/CartContext"
+import { useCurrency } from "@/context/CurrencyContext"
 
 type WishlistItem = {
   _id: string; name: string; price: number; image?: string
@@ -22,6 +23,7 @@ function getCustomer() {
 
 export default function WishlistPage() {
   const { addToCart } = useCart()
+  const { fmt } = useCurrency()
   const [items,   setItems]   = useState<WishlistItem[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -120,8 +122,8 @@ export default function WishlistPage() {
                     <div style={{ fontSize: ".6rem", color: "#444", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: ".2rem" }}>{item.category}</div>
                     <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: ".95rem", marginBottom: ".35rem" }}>{item.name}</div>
                     <div style={{ display: "flex", gap: ".4rem", alignItems: "baseline", marginBottom: ".75rem" }}>
-                      <span style={{ fontWeight: 800 }}>${fp.toFixed(2)}</span>
-                      {item.couponDiscount ? <span style={{ color: "#555", fontSize: ".75rem", textDecoration: "line-through" }}>${item.price.toFixed(2)}</span> : null}
+                      <span style={{ fontWeight: 800 }}>{fmt(fp)}</span>
+                      {item.couponDiscount ? <span style={{ color: "#555", fontSize: ".75rem", textDecoration: "line-through" }}>{fmt(item.price)}</span> : null}
                     </div>
                     <div style={{ display: "flex", gap: ".5rem" }}>
                       <button onClick={() => moveToCart(item)} disabled={item.stockStatus === "sold_out"}

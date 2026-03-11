@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
+import { useCurrency } from "@/context/CurrencyContext"
 
 type TrackOrder = {
   orderId: string
@@ -37,6 +38,7 @@ function fmtDate(d: string) {
 }
 
 function TrackContent() {
+  const { fmt } = useCurrency()
   const params = useSearchParams()
   const [orderId,  setOrderId]  = useState(params.get("id") ?? "")
   const [email,    setEmail]    = useState("")
@@ -182,7 +184,7 @@ function TrackContent() {
                   {order.status.toUpperCase()}
                 </span>
                 <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.4rem", color: "#e5202e" }}>
-                  ${order.totalAmount.toFixed(2)}
+                  {fmt(order.totalAmount)}
                 </div>
               </div>
             </div>
@@ -284,12 +286,12 @@ function TrackContent() {
                       {item.size && <span style={{ color: "#555", fontSize: ".72rem", marginLeft: ".4rem" }}>({item.size})</span>}
                       <span style={{ color: "#555", marginLeft: ".4rem" }}>×{item.qty}</span>
                     </div>
-                    <span style={{ fontWeight: 700, color: "#e5202e" }}>${(item.price * item.qty).toFixed(2)}</span>
+                    <span style={{ fontWeight: 700, color: "#e5202e" }}>{fmt(item.price * item.qty)}</span>
                   </div>
                 ))}
                 <div style={{ display: "flex", justifyContent: "space-between", padding: ".75rem 0 0", fontWeight: 800 }}>
                   <span style={{ fontSize: ".75rem", letterSpacing: 1, textTransform: "uppercase", color: "#555" }}>Total</span>
-                  <span style={{ color: "#e5202e" }}>${order.totalAmount.toFixed(2)}</span>
+                  <span style={{ color: "#e5202e" }}>{fmt(order.totalAmount)}</span>
                 </div>
               </div>
 

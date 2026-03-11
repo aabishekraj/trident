@@ -5,6 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useCart } from "@/context/CartContext"
+import { useCurrency } from "@/context/CurrencyContext"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Product = {
@@ -88,6 +89,7 @@ function finalPrice(p: { price: number; couponDiscount?: number }) {
 export default function HomePage() {
   const router = useRouter()
   const { cart, addToCart: ctxAdd, removeFromCart: ctxRemove, applyCoupon: ctxApplyCoupon, cartCount, openCart, closeCart, cartOpen } = useCart()
+  const { fmt, shippingFreeThreshold } = useCurrency()
   const [products, setProducts]   = useState<Product[]>([])
   const [couponCode, setCouponCode] = useState("")
   const [couponMsg, setCouponMsg]   = useState("")
@@ -494,8 +496,8 @@ export default function HomePage() {
                   <div style={{ fontWeight: 700, fontSize: ".88rem", marginBottom: ".2rem" }}>{item.name}</div>
                   {item.size && <div style={{ color: "#666", fontSize: ".75rem", marginBottom: ".3rem" }}>Size: {item.size}</div>}
                   <div style={{ display: "flex", alignItems: "center", gap: ".5rem" }}>
-                    <span style={{ fontWeight: 700, fontSize: ".9rem" }}>${fp}</span>
-                    {item.couponDiscount && <span style={{ color: "#888", fontSize: ".75rem", textDecoration: "line-through" }}>${item.price}</span>}
+                    <span style={{ fontWeight: 700, fontSize: ".9rem" }}>{fmt(fp)}</span>
+                    {item.couponDiscount && <span style={{ color: "#888", fontSize: ".75rem", textDecoration: "line-through" }}>{fmt(item.price)}</span>}
                   </div>
                   {item.couponDiscount && <div style={{ color: "#e5202e", fontSize: ".72rem", fontWeight: 700, marginTop: ".2rem" }}>-{item.couponDiscount}% applied</div>}
                   <div style={{ display: "flex", alignItems: "center", gap: ".5rem", marginTop: ".5rem" }}>
@@ -553,7 +555,7 @@ export default function HomePage() {
       <section style={{ background: "#050505", borderTop: "1px solid #1e1e1e", borderBottom: "1px solid #1e1e1e", padding: "3.5rem 2.5rem" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: "3rem", maxWidth: 1100, margin: "0 auto" }}>
           {[
-            { icon: "🚚", title: "Free Shipping",      sub: "On all orders over $100. Fast & tracked delivery worldwide." },
+            { icon: "🚚", title: "Free Shipping",      sub: `On all orders over ${fmt(shippingFreeThreshold)}. Fast & tracked delivery worldwide.` },
             { icon: "↩",  title: "Easy Returns",       sub: "30-day hassle-free returns. No questions asked."            },
             { icon: "🔒", title: "Secure Checkout",    sub: "256-bit SSL encryption. Your data is always safe."          },
             { icon: "⚡", title: "Member Rewards",     sub: "Earn points on every purchase. Redeem for exclusive perks."  },
@@ -705,8 +707,8 @@ function HeroProductCard({ product: p, onAdd }: { product: Product; onAdd: () =>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(1.8rem,4vw,2.8rem)", letterSpacing: 2, color: "#f5f5f5", lineHeight: 1, marginBottom: ".75rem" }}>{p.name}</div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "baseline", gap: ".6rem" }}>
-                <span style={{ fontWeight: 800, fontSize: "1.4rem", color: "#f5f5f5" }}>${fp}</span>
-                {p.couponDiscount && <span style={{ color: "#777", fontSize: "1rem", textDecoration: "line-through" }}>${p.price}</span>}
+                <span style={{ fontWeight: 800, fontSize: "1.4rem", color: "#f5f5f5" }}>{fmt(fp)}</span>
+                {p.couponDiscount && <span style={{ color: "#777", fontSize: "1rem", textDecoration: "line-through" }}>{fmt(p.price)}</span>}
               </div>
               {!isSoldOut && !isComingSoon && (
                 <button onClick={e => { e.preventDefault(); onAdd() }}
@@ -783,8 +785,8 @@ function ProductCard({ product: p, index, onAdd, compact = false }: { product: P
         <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "1.35rem", fontWeight: 700, marginBottom: ".8rem" }}>{p.name}</div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: ".5rem" }}>
-            <span style={{ fontWeight: 800, fontSize: "1.05rem" }}>${fp}</span>
-            {p.couponDiscount && <span style={{ color: "#555", fontSize: ".85rem", textDecoration: "line-through" }}>${p.price}</span>}
+            <span style={{ fontWeight: 800, fontSize: "1.05rem" }}>{fmt(fp)}</span>
+            {p.couponDiscount && <span style={{ color: "#555", fontSize: ".85rem", textDecoration: "line-through" }}>{fmt(p.price)}</span>}
           </div>
           {!isSoldOut && !isComingSoon && (
             <button className="product-add-btn" onClick={onAdd}

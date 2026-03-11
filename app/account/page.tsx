@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useCurrency } from "@/context/CurrencyContext"
 
 type Customer = { name: string; email: string; token: string }
 type Order = {
@@ -10,6 +11,7 @@ type Order = {
 }
 
 export default function AccountPage() {
+  const { fmt } = useCurrency()
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [orders,   setOrders]   = useState<Order[]>([])
   const [loading,  setLoading]  = useState(true)
@@ -106,7 +108,7 @@ export default function AccountPage() {
                   </div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontWeight: 800, marginBottom: ".35rem" }}>${o.totalAmount.toFixed(2)}</div>
+                  <div style={{ fontWeight: 800, marginBottom: ".35rem" }}>{fmt(o.totalAmount)}</div>
                   <span style={{ display: "inline-block", background: `${statusColor[o.status] || "#555"}20`, color: statusColor[o.status] || "#888", padding: ".2rem .7rem", fontSize: ".62rem", fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase" }}>
                     {o.status}
                   </span>
