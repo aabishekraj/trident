@@ -249,13 +249,13 @@ export default function GenderCollectionPage({ params }: { params: Promise<{ gen
             RECENTLY VIEWED
           </div>
           <div style={{ display: "flex", gap: "1px", background: "#1a1a1a", overflowX: "auto" }}>
-            {recentlyViewed.map(rv => (
-              <div key={rv._id} onClick={() => router.push(`/product/${rv._id}`)}
+            {recentlyViewed.map((rv, i) => (
+              <div key={rv._id ?? i} onClick={() => router.push(`/product/${rv._id}`)}
                 style={{ flex: "0 0 180px", background: "#0a0a0a", cursor: "pointer", overflow: "hidden" }}
                 onMouseEnter={e => (e.currentTarget.style.background = "#0d0d0d")}
                 onMouseLeave={e => (e.currentTarget.style.background = "#0a0a0a")}>
                 <div style={{ position: "relative", aspectRatio: "1", background: "#111" }}>
-                  <Image src={safeImg(rv.image)} alt={rv.name} fill style={{ objectFit: "cover" }} unoptimized />
+                  <Image src={safeImg(rv.image)} alt={rv.name ?? "Product image"} fill style={{ objectFit: "cover" }} unoptimized />
                 </div>
                 <div style={{ padding: ".75rem 1rem" }}>
                   <div style={{ fontSize: ".78rem", fontWeight: 700, marginBottom: ".2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rv.name}</div>
