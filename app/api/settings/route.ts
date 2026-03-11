@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
-import dbConnect from "@/lib/dbConnect"
+import { connectDB } from "@/lib/mongodb"
 import SiteSettings from "@/models/SiteSettings"
 
 // Public read — used by PromoBanner on storefront
 export async function GET() {
   try {
-    await dbConnect()
+    await connectDB()
     let settings = await SiteSettings.findOne().lean()
     if (!settings) {
       const created = await SiteSettings.create({})

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import dbConnect from "@/lib/dbConnect"
+import { connectDB } from "@/lib/mongodb"
 import SiteSettings from "@/models/SiteSettings"
 import { getAdminSession, checkPermission } from "@/lib/adminAuth"
 
@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   const err = checkPermission(req, "settings")
   if (err) return NextResponse.json({ error: err.error }, { status: err.status })
 
-  await dbConnect()
+  await connectDB()
   let settings = await SiteSettings.findOne().lean()
   if (!settings) {
     const created = await SiteSettings.create({})
@@ -41,7 +41,7 @@ export async function PUT(req: NextRequest) {
       .filter(s => s.length > 0)
       .slice(0, 20)
 
-  await dbConnect()
+  await connectDB()
   let settings = await SiteSettings.findOne()
   if (!settings) settings = await SiteSettings.create({})
 
