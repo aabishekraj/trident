@@ -2,111 +2,123 @@
 
 import { createContext, useContext, useState, useEffect } from "react"
 
-type CartItem = {
+export type CartItem = {
   id: string
   name: string
   price: number
   image?: string
   quantity: number
+  size?: string
+  couponDiscount?: number
+  couponCode?: string
 }
 
 type CartContextType = {
   cart: CartItem[]
-  addToCart: (item: CartItem) => void
-  removeFromCart: (id: string) => void
-  increaseQty: (id: string) => void
-  decreaseQty: (id: string) => void
+  addToCart: (item: Omit<CartItem, "quantity"> & { quantity?: number }) => void
+  removeFromCart: (id: string, size?: string) => void
+  increaseQty: (id: string, size?: string) => void
+  decreaseQty: (id: string, size?: string) => void
   clearCart: () => void
+  cartCount: number
+  openCart: () => void
+  closeCart: () => void
+  cartOpen: boolean
 }
 
 const CartContext = createContext<CartContextType | null>(null)
 
+function itemKey(id: string, size?: string) {
+  return id + (size || "")
+}
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  const [cart, setCart]         = useState<CartItem[]>([])
+  const [cartOpen, setCartOpen] = useState(false)
 
-  const [cart, setCart] = useState<CartItem[]>([])
-
-  // load cart from localStorage
+  // Load from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem("cart")
-    if (stored) {
-      setCart(JSON.parse(stored))
-    }
+    try {
+      const stored = localStorage.getItem("trident_cart_v2")
+      if (stored) setCart(JSON.parse(stored))
+    } catch { /* ignore */ }
   }, [])
 
-  // save cart to localStorage
+  // Persist to localStorage AND sync to sessionStorage (checkout format)
   useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(cart))
+    localStorage.setItem("trident_cart_v2", JSON.stringify(cart))
+    // Sync to sessionStorage in checkout-compatible format
+    const checkoutCart = cart.map(item => ({
+      _id: item.id,
+      name: item.name,
+      price: item.price,
+      image: item.image,
+      qty: item.quantity,
+      selectedSize: item.size,
+      couponDiscount: item.couponDiscount,
+      couponCode: item.couponCode,
+    }))
+    try { sessionStorage.setItem("trident_cart", JSON.stringify(checkoutCart)) } catch { /* ignore */ }
   }, [cart])
 
-  const addToCart = (item: CartItem) => {
-
+  const addToCart = (item: Omit<CartItem, "quantity"> & { quantity?: number }) => {
     setCart(prev => {
-
-      const existing = prev.find(p => p.id === item.id)
-
+      const key = itemKey(item.id, item.size)
+      const existing = prev.find(p => itemKey(p.id, p.size) === key)
       if (existing) {
         return prev.map(p =>
-          p.id === item.id
-            ? { ...p, quantity: p.quantity + 1 }
+          itemKey(p.id, p.size) === key
+            ? { ...p, quantity: p.quantity + (item.quantity ?? 1) }
             : p
         )
       }
-
-      return [...prev, { ...item, quantity: 1 }]
+      return [...prev, { ...item, quantity: item.quantity ?? 1 }]
     })
   }
 
-  const removeFromCart = (id: string) => {
-    setCart(prev => prev.filter(item => item.id !== id))
+  const removeFromCart = (id: string, size?: string) => {
+    const key = itemKey(id, size)
+    setCart(prev => prev.filter(item => itemKey(item.id, item.size) !== key))
   }
 
-  const increaseQty = (id: string) => {
+  const increaseQty = (id: string, size?: string) => {
+    const key = itemKey(id, size)
     setCart(prev =>
       prev.map(item =>
-        item.id === id
+        itemKey(item.id, item.size) === key
           ? { ...item, quantity: item.quantity + 1 }
           : item
       )
     )
   }
 
-  const decreaseQty = (id: string) => {
+  const decreaseQty = (id: string, size?: string) => {
+    const key = itemKey(id, size)
     setCart(prev =>
       prev.map(item =>
-        item.id === id
+        itemKey(item.id, item.size) === key
           ? { ...item, quantity: Math.max(1, item.quantity - 1) }
           : item
       )
     )
   }
 
-  const clearCart = () => {
-    setCart([])
-  }
+  const clearCart = () => setCart([])
+
+  const cartCount = cart.reduce((s, i) => s + i.quantity, 0)
 
   return (
-    <CartContext.Provider
-      value={{
-        cart,
-        addToCart,
-        removeFromCart,
-        increaseQty,
-        decreaseQty,
-        clearCart
-      }}
-    >
+    <CartContext.Provider value={{
+      cart, addToCart, removeFromCart, increaseQty, decreaseQty, clearCart,
+      cartCount, openCart: () => setCartOpen(true), closeCart: () => setCartOpen(false), cartOpen,
+    }}>
       {children}
     </CartContext.Provider>
   )
 }
 
 export function useCart() {
-
   const context = useContext(CartContext)
-
-  if (!context) {
-    throw new Error("useCart must be used inside CartProvider")
-  }
-
+  if (!context) throw new Error("useCart must be used inside CartProvider")
   return context
 }

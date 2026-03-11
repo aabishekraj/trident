@@ -139,8 +139,17 @@ export default function ProductPage() {
 
   function handleAddToCart() {
     if (!product || product.stockStatus !== "active") return
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    addToCart({ ...product, selectedSize: selSize } as any)
+    const finalP = product.couponDiscount
+      ? +(product.price * (1 - product.couponDiscount / 100)).toFixed(2)
+      : product.price
+    addToCart({
+      id:             product._id,
+      name:           product.name,
+      price:          finalP,
+      image:          product.image,
+      size:           selSize || undefined,
+      couponDiscount: product.couponDiscount,
+    })
     setAdded(true)
     setTimeout(() => setAdded(false), 2000)
   }

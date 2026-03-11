@@ -66,12 +66,12 @@ function NavDropdown({ title, gender, items }: { title: string; gender: string; 
 }
 
 export default function Navbar() {
-  const { cart } = useCart()
+  const { cart, openCart, cartCount } = useCart()
   const [open, setOpen]           = useState(false)
   const [customer, setCustomer]   = useState<{ name: string; email: string } | null>(null)
   const [wishCount, setWishCount] = useState(0)
 
-  const cartTotal = cart.reduce((t, item) => t + item.quantity, 0)
+  const cartTotal = cartCount ?? cart.reduce((t, item) => t + item.quantity, 0)
 
   useEffect(() => {
     const saved = localStorage.getItem("trident_customer")
@@ -154,7 +154,7 @@ export default function Navbar() {
             <Link href="/search" style={{ color: "#888", fontSize: "1.05rem", lineHeight: 1, textDecoration: "none" }} title="Search">🔍</Link>
 
             {/* Cart */}
-            <button onClick={() => setOpen(true)} style={{ position: "relative", background: "none", border: "none", color: "#888", fontSize: "1.1rem", cursor: "pointer", lineHeight: 1, padding: 0 }}>
+            <button onClick={openCart} style={{ position: "relative", background: "none", border: "none", color: "#888", fontSize: "1.1rem", cursor: "pointer", lineHeight: 1, padding: 0 }}>
               🛍
               {cartTotal > 0 && (
                 <span style={{ position: "absolute", top: -8, right: -8, background: "#e5202e", color: "#fff", width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".55rem", fontWeight: 800 }}>
@@ -166,7 +166,7 @@ export default function Navbar() {
         </div>
       </nav>
 
-      <CartDrawer open={open} setOpen={setOpen} />
+      <CartDrawer />
     </>
   )
 }
