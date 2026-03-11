@@ -652,6 +652,7 @@ export default function HomePage() {
 
 // ── Hero Product Card (large, left col) ────────────────────────────────────
 function HeroProductCard({ product: p, onAdd }: { product: Product; onAdd: () => void }) {
+  const { fmt } = useCurrency()
   const fp = finalPrice(p)
   const isSoldOut    = p.stockStatus === "sold_out"
   const isComingSoon = p.stockStatus === "coming_soon"
@@ -728,6 +729,7 @@ function HeroProductCard({ product: p, onAdd }: { product: Product; onAdd: () =>
 
 // ── Product Card ──────────────────────────────────────────────────────────────
 function ProductCard({ product: p, index, onAdd, compact = false }: { product: Product; index: number; onAdd: () => void; compact?: boolean }) {
+  const { fmt } = useCurrency()
   const fp = finalPrice(p)
   const isSoldOut    = p.stockStatus === "sold_out"
   const isComingSoon = p.stockStatus === "coming_soon"
