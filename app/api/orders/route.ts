@@ -5,13 +5,13 @@ import { sendOrderConfirmation } from "@/lib/email";
 import { getAdminSession } from "@/lib/adminAuth";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ESC = (s: string) => s.replace(/[$()*+?.\\^{}|[\]]/g, "\\$&")
 
 // ─── GET /api/orders ──────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const session    = getAdminSession(req);
   const custHeader = req.headers.get("x-customer-email")?.toLowerCase().trim();
 
-  // Require admin session OR valid customer email header
   if (!session && !custHeader) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
@@ -23,29 +23,31 @@ export async function GET(req: NextRequest) {
     await connectDB();
 
     const { searchParams } = new URL(req.url);
-    const status  = searchParams.get("status")  || "";
-    const search  = searchParams.get("search")  || "";
-    const page    = Math.max(1, parseInt(searchParams.get("page")  || "1"));
-    const limit   = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "20")));
+    const statusParam = searchParams.get("status") || "";
+    const search      = (searchParams.get("search") || "").trim().slice(0, 100);
+    const page        = Math.max(1, parseInt(searchParams.get("page")  || "1"));
+    const limit       = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "20")));
 
+    const VALID_STATUSES = ["pending", "processing", "shipped", "delivered", "cancelled"];
     const filter: Record<string, unknown> = {};
 
     if (session) {
-      // Admin: allow filtering by email/search/status
-      const emailParam = searchParams.get("email") || "";
+      const emailParam = (searchParams.get("email") || "").toLowerCase().trim();
       if (emailParam && EMAIL_RE.test(emailParam)) {
-        filter["customer.email"] = emailParam.toLowerCase();
+        filter["customer.email"] = emailParam;
       }
-      if (status) filter.status = status;
+      if (statusParam && VALID_STATUSES.includes(statusParam)) {
+        filter.status = statusParam;
+      }
       if (search) {
+        const safe = ESC(search);
         filter.$or = [
-          { orderId: { $regex: search.replace(/[$()*+?.\\^{}|[\]]/g, "\\$&"), $options: "i" } },
-          { "customer.name":  { $regex: search.replace(/[$()*+?.\\^{}|[\]]/g, "\\$&"), $options: "i" } },
-          { "customer.email": { $regex: search.replace(/[$()*+?.\\^{}|[\]]/g, "\\$&"), $options: "i" } },
+          { orderId:          { $regex: safe, $options: "i" } },
+          { "customer.name":  { $regex: safe, $options: "i" } },
+          { "customer.email": { $regex: safe, $options: "i" } },
         ];
       }
     } else {
-      // Customer: only their own orders
       filter["customer.email"] = custHeader;
     }
 
@@ -70,7 +72,7 @@ export async function POST(req: NextRequest) {
     await connectDB();
     const body = await req.json();
 
-    // Basic validation
+    // Validate required fields
     if (!body.customer?.name || !body.customer?.email || !body.items?.length) {
       return NextResponse.json(
         { success: false, error: "customer.name, customer.email and items are required" },
@@ -78,23 +80,69 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Auto-calculate total if not provided
-    if (!body.totalAmount) {
-      body.totalAmount = body.items.reduce(
-        (sum: number, item: { price: number; qty: number }) => sum + item.price * item.qty,
-        0
-      );
+    // Validate email format
+    const email = String(body.customer.email).toLowerCase().trim();
+    if (!EMAIL_RE.test(email)) {
+      return NextResponse.json({ success: false, error: "Invalid customer email" }, { status: 400 });
     }
 
-    const order = await Order.create(body);
+    // Allowlist payment method
+    const VALID_METHODS = ["card", "upi", "cod"];
+    const paymentMethod = VALID_METHODS.includes(body.paymentMethod) ? body.paymentMethod : "card";
+
+    // Allowlist payment status
+    const VALID_PAYMENT_STATUSES = ["pending", "paid", "failed", "refunded"];
+    const paymentStatus = VALID_PAYMENT_STATUSES.includes(body.paymentStatus) ? body.paymentStatus : "pending";
+
+    // Allowlist order status
+    const VALID_ORDER_STATUSES = ["pending", "processing", "shipped", "delivered", "cancelled"];
+    const status = VALID_ORDER_STATUSES.includes(body.status) ? body.status : "pending";
+
+    // Sanitize items — only allow known fields, reject injected fields
+    const items = (Array.isArray(body.items) ? body.items as Record<string, unknown>[] : [])
+      .slice(0, 100)
+      .map(item => ({
+        productId: typeof item.productId === "string" ? item.productId.slice(0, 100) : "",
+        name:      typeof item.name === "string"      ? item.name.trim().slice(0, 200) : "",
+        price:     typeof item.price === "number"     ? Math.max(0, item.price) : 0,
+        qty:       typeof item.qty === "number"       ? Math.max(1, Math.floor(item.qty)) : 1,
+        size:      typeof item.size === "string"      ? item.size.trim().slice(0, 20) : "",
+      }))
+      .filter(i => i.name && i.price > 0);
+
+    if (!items.length) {
+      return NextResponse.json({ success: false, error: "No valid items in order" }, { status: 400 });
+    }
+
+    // Accept client total (includes shipping+tax) but round it
+    const totalAmount = typeof body.totalAmount === "number" && body.totalAmount > 0
+      ? Math.round(body.totalAmount * 100) / 100
+      : Math.round(items.reduce((s, i) => s + i.price * i.qty, 0) * 100) / 100;
+
+    const order = await Order.create({
+      customer: {
+        name:    String(body.customer.name).trim().slice(0, 100),
+        email,
+        phone:   typeof body.customer.phone === "string"   ? body.customer.phone.trim().slice(0, 20) : "",
+        address: typeof body.customer.address === "string" ? body.customer.address.trim().slice(0, 500) : "",
+      },
+      items,
+      totalAmount,
+      currency:    typeof body.currency === "string" && ["USD","INR","EUR"].includes(body.currency)
+                     ? body.currency : "USD",
+      paymentMethod,
+      paymentStatus,
+      status,
+      notes: typeof body.notes === "string" ? body.notes.trim().slice(0, 1000) : undefined,
+    });
 
     // Send confirmation email (non-blocking)
     sendOrderConfirmation({
-      orderId: order.orderId,
-      customerName: order.customer.name,
-      customerEmail: order.customer.email,
-      items: order.items,
-      totalAmount: order.totalAmount,
+      orderId:         order.orderId,
+      customerName:    order.customer.name,
+      customerEmail:   order.customer.email,
+      items:           order.items,
+      totalAmount:     order.totalAmount,
       shippingAddress: order.customer.address || "",
     }).catch(e => console.error("[EMAIL confirm]", e));
 

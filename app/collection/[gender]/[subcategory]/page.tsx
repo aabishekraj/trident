@@ -4,11 +4,15 @@ import { useEffect, useState, use } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useCurrency } from "@/context/CurrencyContext"
 
 type Product = {
   _id: string; name: string; price: number; image?: string; tag?: string
   category?: string; sizes?: string[]; stockStatus?: "active" | "sold_out" | "coming_soon"
+  stockQuantity?: number
 }
+
+type RecentItem = { _id: string; name: string; price: number; image?: string }
 
 // Maps URL slugs → DB category keyword
 const SLUG_TO_CATEGORY: Record<string, string> = {
@@ -35,16 +39,35 @@ function safeImg(url?: string) {
     : "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80"
 }
 
+function trackRecentlyViewed(p: Product) {
+  try {
+    const key = "trident_recently_viewed"
+    const existing: RecentItem[] = JSON.parse(localStorage.getItem(key) || "[]")
+    const filtered = existing.filter(r => r._id !== p._id)
+    const updated = [{ _id: p._id, name: p.name, price: p.price, image: p.image }, ...filtered].slice(0, 12)
+    localStorage.setItem(key, JSON.stringify(updated))
+  } catch {}
+}
+
 export default function SubcategoryPage({ params }: { params: Promise<{ gender: string; subcategory: string }> }) {
   const { gender, subcategory } = use(params)
   const router   = useRouter()
+  const { fmt }  = useCurrency()
   const catLabel = SLUG_TO_CATEGORY[subcategory] || subcategory.replace(/-/g, " ")
   const genderLabel = gender.charAt(0).toUpperCase() + gender.slice(1)
   const categoryQuery = `${genderLabel} — ${catLabel}`
 
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading,  setLoading]  = useState(true)
-  const [sort,     setSort]     = useState("newest")
+  const [products,       setProducts]       = useState<Product[]>([])
+  const [loading,        setLoading]        = useState(true)
+  const [sort,           setSort]           = useState("newest")
+  const [recentlyViewed, setRecentlyViewed] = useState<RecentItem[]>([])
+
+  useEffect(() => {
+    try {
+      const items: RecentItem[] = JSON.parse(localStorage.getItem("trident_recently_viewed") || "[]")
+      setRecentlyViewed(items.slice(0, 6))
+    } catch {}
+  }, [])
 
   useEffect(() => {
     setLoading(true)
@@ -130,7 +153,7 @@ export default function SubcategoryPage({ params }: { params: Promise<{ gender: 
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 1, background: "#1a1a1a" }}>
             {sorted.map(p => (
-              <div key={p._id} onClick={() => router.push(`/product/${p._id}`)}
+              <div key={p._id} onClick={() => { trackRecentlyViewed(p); router.push(`/product/${p._id}`) }}
                 style={{ background: "#0a0a0a", cursor: "pointer", overflow: "hidden" }}>
                 <div style={{ position: "relative", aspectRatio: "4/5", background: "#0d0d0d" }}>
                   <Image src={safeImg(p.image)} alt={p.name} fill style={{ objectFit: "cover" }} unoptimized />
@@ -144,16 +167,44 @@ export default function SubcategoryPage({ params }: { params: Promise<{ gender: 
                       </span>
                     </div>
                   )}
+                  {p.stockStatus === "active" && typeof p.stockQuantity === "number" && p.stockQuantity > 0 && p.stockQuantity <= 5 && (
+                    <span style={{ position: "absolute", bottom: "1rem", left: "1rem", background: "rgba(234,179,8,.9)", color: "#000", fontSize: ".62rem", fontWeight: 900, letterSpacing: 1, padding: ".25rem .6rem", textTransform: "uppercase" }}>
+                      Only {p.stockQuantity} left!
+                    </span>
+                  )}
                 </div>
                 <div style={{ padding: "1rem 1.2rem" }}>
                   <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: "1rem", marginBottom: ".3rem" }}>{p.name}</div>
-                  <div style={{ fontWeight: 800 }}>${p.price}</div>
+                  <div style={{ fontWeight: 800 }}>{fmt(p.price)}</div>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Recently Viewed */}
+      {recentlyViewed.length > 0 && (
+        <div style={{ borderTop: "1px solid #1a1a1a", padding: "3rem 2.5rem" }}>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.4rem", letterSpacing: 3, marginBottom: "1.5rem" }}>
+            RECENTLY VIEWED
+          </div>
+          <div style={{ display: "flex", gap: "1px", background: "#1a1a1a", overflowX: "auto" }}>
+            {recentlyViewed.map(rv => (
+              <div key={rv._id} onClick={() => router.push(`/product/${rv._id}`)}
+                style={{ background: "#0a0a0a", cursor: "pointer", minWidth: 160, flexShrink: 0, overflow: "hidden" }}>
+                <div style={{ position: "relative", height: 200, background: "#0d0d0d" }}>
+                  <Image src={safeImg(rv.image)} alt={rv.name} fill style={{ objectFit: "cover" }} unoptimized />
+                </div>
+                <div style={{ padding: ".75rem 1rem" }}>
+                  <div style={{ fontSize: ".78rem", fontWeight: 700, marginBottom: ".2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rv.name}</div>
+                  <div style={{ fontWeight: 800, fontSize: ".85rem", color: "#e5202e" }}>{fmt(rv.price)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

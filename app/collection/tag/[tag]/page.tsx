@@ -1,16 +1,19 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
+import { useCurrency } from "@/context/CurrencyContext"
 
 type Product = {
   _id: string; name: string; price: number
   image?: string; tag?: string; category?: string
   sizes?: string[]; stockStatus?: "active" | "sold_out" | "coming_soon"
-  couponDiscount?: number
+  couponDiscount?: number; stockQuantity?: number
 }
+
+type RecentItem = { _id: string; name: string; price: number; image?: string }
 
 const TAG_META: Record<string, { label: string; description: string; color: string }> = {
   NEW:       { label: "NEW ARRIVALS",    description: "The latest additions — fresh off the production line.",        color: "#22c55e"  },
@@ -27,14 +30,34 @@ function safeImg(url?: string) {
   return url && url.startsWith("http") ? url : "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80"
 }
 
+function trackRecentlyViewed(p: Product) {
+  try {
+    const key = "trident_recently_viewed"
+    const existing: RecentItem[] = JSON.parse(localStorage.getItem(key) || "[]")
+    const filtered = existing.filter(r => r._id !== p._id)
+    const updated = [{ _id: p._id, name: p.name, price: p.price, image: p.image }, ...filtered].slice(0, 12)
+    localStorage.setItem(key, JSON.stringify(updated))
+  } catch {}
+}
+
 export default function TagCollectionPage() {
   const params = useParams()
+  const router = useRouter()
+  const { fmt } = useCurrency()
   const tag = (Array.isArray(params.tag) ? params.tag[0] : params.tag || "NEW").toUpperCase()
   const meta = TAG_META[tag] || { label: tag, description: "Products tagged with " + tag, color: "#e5202e" }
 
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading,  setLoading]  = useState(true)
-  const [sort,     setSort]     = useState("newest")
+  const [products,       setProducts]       = useState<Product[]>([])
+  const [loading,        setLoading]        = useState(true)
+  const [sort,           setSort]           = useState("newest")
+  const [recentlyViewed, setRecentlyViewed] = useState<RecentItem[]>([])
+
+  useEffect(() => {
+    try {
+      const items: RecentItem[] = JSON.parse(localStorage.getItem("trident_recently_viewed") || "[]")
+      setRecentlyViewed(items.slice(0, 6))
+    } catch {}
+  }, [])
 
   useEffect(() => {
     setLoading(true)
@@ -121,7 +144,8 @@ export default function TagCollectionPage() {
               const sold = p.stockStatus === "sold_out"
               const soon = p.stockStatus === "coming_soon"
               return (
-                <div key={p._id} style={{ background: "#0d0d0d", overflow: "hidden" }}>
+                <div key={p._id} onClick={() => { trackRecentlyViewed(p); router.push(`/product/${p._id}`) }}
+                  style={{ background: "#0d0d0d", overflow: "hidden", cursor: "pointer" }}>
                   <div style={{ position: "relative", height: 300, background: "#111", overflow: "hidden" }}>
                     <Image src={safeImg(p.image)} alt={p.name} fill style={{ objectFit: "cover", transition: "transform .4s" }} unoptimized
                       onMouseEnter={e => ((e.currentTarget as HTMLElement).style.transform = "scale(1.05)")}
@@ -133,12 +157,17 @@ export default function TagCollectionPage() {
                         </span>
                       </div>
                     )}
+                    {p.stockStatus === "active" && typeof p.stockQuantity === "number" && p.stockQuantity > 0 && p.stockQuantity <= 5 && (
+                      <span style={{ position: "absolute", bottom: "1rem", left: "1rem", background: "rgba(234,179,8,.9)", color: "#000", fontSize: ".62rem", fontWeight: 900, letterSpacing: 1, padding: ".25rem .6rem", textTransform: "uppercase" }}>
+                        Only {p.stockQuantity} left!
+                      </span>
+                    )}
                     <span style={{ position: "absolute", top: "1rem", left: "1rem", background: meta.color, color: "#000", fontSize: ".6rem", fontWeight: 900, letterSpacing: 2, textTransform: "uppercase", padding: ".25rem .6rem" }}>{p.tag}</span>
                   </div>
                   <div style={{ padding: "1rem 1.2rem" }}>
                     <div style={{ fontSize: ".65rem", color: "#555", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: ".25rem" }}>{p.category}</div>
                     <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: "1.1rem", marginBottom: ".4rem" }}>{p.name}</div>
-                    <div style={{ fontWeight: 800, color: "#f5f5f5" }}>${fp.toFixed(2)}</div>
+                    <div style={{ fontWeight: 800, color: "#f5f5f5" }}>{fmt(fp)}</div>
                   </div>
                 </div>
               )
@@ -146,6 +175,29 @@ export default function TagCollectionPage() {
           </div>
         )}
       </div>
+
+      {/* Recently Viewed */}
+      {recentlyViewed.length > 0 && (
+        <div style={{ borderTop: "1px solid #1a1a1a", padding: "3rem 2.5rem", maxWidth: 1280, margin: "0 auto" }}>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.4rem", letterSpacing: 3, marginBottom: "1.5rem" }}>
+            RECENTLY VIEWED
+          </div>
+          <div style={{ display: "flex", gap: "1px", background: "#1a1a1a", overflowX: "auto" }}>
+            {recentlyViewed.map(rv => (
+              <div key={rv._id} onClick={() => router.push(`/product/${rv._id}`)}
+                style={{ background: "#0a0a0a", cursor: "pointer", minWidth: 160, flexShrink: 0, overflow: "hidden" }}>
+                <div style={{ position: "relative", height: 200, background: "#0d0d0d" }}>
+                  <Image src={safeImg(rv.image)} alt={rv.name} fill style={{ objectFit: "cover" }} unoptimized />
+                </div>
+                <div style={{ padding: ".75rem 1rem" }}>
+                  <div style={{ fontSize: ".78rem", fontWeight: 700, marginBottom: ".2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rv.name}</div>
+                  <div style={{ fontWeight: 800, fontSize: ".85rem", color: "#e5202e" }}>{fmt(rv.price)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

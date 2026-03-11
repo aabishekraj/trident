@@ -15,8 +15,17 @@ export default function PromoBanner() {
   const [dismissed, setDismissed] = useState(false)
   const [messages, setMessages] = useState<string[]>(DEFAULT_MESSAGES)
 
+  // Only show on collection pages (/collection/*)
+  const isCollectionPage = pathname?.startsWith("/collection")
+
   useEffect(() => {
-    if (pathname?.startsWith("/admin")) return
+    // Persist dismissed state for the whole browser session
+    const wasDismissed = sessionStorage.getItem("trident_banner_dismissed") === "1"
+    if (wasDismissed) setDismissed(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isCollectionPage) return
     fetch("/api/settings")
       .then(r => r.json())
       .then(d => {
@@ -25,9 +34,14 @@ export default function PromoBanner() {
         }
       })
       .catch(() => {})
-  }, [pathname])
+  }, [isCollectionPage])
 
-  if (dismissed || pathname?.startsWith("/admin")) return null
+  if (!isCollectionPage || dismissed) return null
+
+  function handleDismiss() {
+    sessionStorage.setItem("trident_banner_dismissed", "1")
+    setDismissed(true)
+  }
 
   return (
     <div style={{
@@ -55,7 +69,7 @@ export default function PromoBanner() {
       </div>
 
       {/* Dismiss */}
-      <button onClick={() => setDismissed(true)}
+      <button onClick={handleDismiss}
         style={{ position: "absolute", right: ".75rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "rgba(255,255,255,.6)", fontSize: ".85rem", cursor: "pointer", lineHeight: 1, padding: 0, flexShrink: 0, zIndex: 2 }}>
         ✕
       </button>

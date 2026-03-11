@@ -5,7 +5,6 @@ import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useCurrency } from "@/context/CurrencyContext"
-import { useTheme } from "@/context/ThemeContext"
 
 type CartItem = {
   _id: string; name: string; price: number; image?: string
@@ -27,16 +26,15 @@ function finalPrice(p: CartItem) {
 export default function CheckoutPage() {
   const router = useRouter()
   const { fmt, getShipping, mismatch, taxRate, currency, shippingFreeThreshold } = useCurrency()
-  const { c } = useTheme()
 
   const INP: React.CSSProperties = {
-    width: "100%", background: c.input, border: `1px solid ${c.border}`,
-    color: c.text, padding: ".75rem 1rem",
+    width: "100%", background: "#0d0d0d", border: "1px solid #1e1e1e",
+    color: "#f5f5f5", padding: ".75rem 1rem",
     fontFamily: "'Barlow', sans-serif", fontSize: ".88rem", outline: "none",
   }
   const LABEL: React.CSSProperties = {
     display: "block", fontSize: ".7rem", fontWeight: 700,
-    letterSpacing: 2, textTransform: "uppercase", color: c.textMuted, marginBottom: ".4rem",
+    letterSpacing: 2, textTransform: "uppercase", color: "#666", marginBottom: ".4rem",
   }
 
   const [cart, setCart]             = useState<CartItem[]>([])
@@ -188,30 +186,30 @@ export default function CheckoutPage() {
   }
 
   if (step === "confirm") return (
-    <div style={{ minHeight: "100vh", background: c.bg, color: c.text, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Barlow', sans-serif", padding: "2rem" }}>
+    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Barlow', sans-serif", padding: "2rem" }}>
       <div style={{ textAlign: "center", maxWidth: 480 }}>
         <div style={{ fontSize: "4rem", marginBottom: "1.5rem" }}>✅</div>
         <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "3rem", letterSpacing: 2, marginBottom: ".5rem" }}>ORDER PLACED!</h1>
         <div style={{ color: "#e5202e", fontFamily: "'Barlow Condensed', sans-serif", fontSize: "1.1rem", fontWeight: 700, letterSpacing: 2, marginBottom: "1rem" }}>{orderId}</div>
-        <p style={{ color: c.textMuted, lineHeight: 1.7, marginBottom: "2rem" }}>
-          A confirmation has been sent to <strong style={{ color: c.text }}>{form.email}</strong>.<br />
+        <p style={{ color: "#666", lineHeight: 1.7, marginBottom: "2rem" }}>
+          A confirmation has been sent to <strong style={{ color: "#f5f5f5" }}>{form.email}</strong>.<br />
           Track your order anytime from the link below.
         </p>
-        <div style={{ background: c.surface, border: `1px solid ${c.border}`, padding: "1.5rem", marginBottom: "2rem", textAlign: "left" }}>
-          <div style={{ fontSize: ".7rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: c.textMuted, marginBottom: "1rem" }}>Order Summary</div>
+        <div style={{ background: "#0d0d0d", border: `1px solid #1e1e1e`, padding: "1.5rem", marginBottom: "2rem", textAlign: "left" }}>
+          <div style={{ fontSize: ".7rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#666", marginBottom: "1rem" }}>Order Summary</div>
           {cart.map(i => (
             <div key={i._id} style={{ display: "flex", justifyContent: "space-between", marginBottom: ".5rem", fontSize: ".85rem" }}>
-              <span style={{ color: c.textDim }}>{i.name} {i.selectedSize && `(${i.selectedSize})`} × {i.qty}</span>
+              <span style={{ color: "#888" }}>{i.name} {i.selectedSize && `(${i.selectedSize})`} × {i.qty}</span>
               <span style={{ fontWeight: 700 }}>{fmt(finalPrice(i) * i.qty)}</span>
             </div>
           ))}
-          <div style={{ borderTop: `1px solid ${c.border}`, marginTop: ".75rem", paddingTop: ".75rem", display: "flex", justifyContent: "space-between", fontWeight: 800 }}>
+          <div style={{ borderTop: `1px solid #1e1e1e`, marginTop: ".75rem", paddingTop: ".75rem", display: "flex", justifyContent: "space-between", fontWeight: 800 }}>
             <span>TOTAL</span><span style={{ color: "#e5202e" }}>{fmt(total)}</span>
           </div>
         </div>
         <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
-          <Link href="/" style={{ background: c.text, color: c.bg, padding: ".8rem 2rem", fontWeight: 800, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none" }}>KEEP SHOPPING</Link>
-          <Link href={orderId ? `/track?id=${orderId}` : "/track"} style={{ border: `1px solid ${c.border}`, color: c.textDim, padding: ".8rem 2rem", fontWeight: 700, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none" }}>TRACK ORDER</Link>
+          <Link href="/" style={{ background: "#f5f5f5", color: "#0a0a0a", padding: ".8rem 2rem", fontWeight: 800, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none" }}>KEEP SHOPPING</Link>
+          <Link href={orderId ? `/track?id=${orderId}` : "/track"} style={{ border: `1px solid #1e1e1e`, color: "#888", padding: ".8rem 2rem", fontWeight: 700, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", textDecoration: "none" }}>TRACK ORDER</Link>
         </div>
         {isGuest && (
           <div style={{ marginTop: "1.5rem", background: "rgba(59,130,246,.08)", border: "1px solid rgba(59,130,246,.2)", padding: "1rem", fontSize: ".78rem", color: "#3b82f6" }}>
@@ -223,11 +221,11 @@ export default function CheckoutPage() {
   )
 
   return (
-    <div style={{ minHeight: "100vh", background: c.bg, color: c.text, fontFamily: "'Barlow', sans-serif" }}>
-      <nav style={{ position: "sticky", top: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2.5rem", height: 64, background: c.nav, borderBottom: `1px solid ${c.border}` }}>
-        <Link href="/" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.8rem", letterSpacing: 4, color: c.text, textDecoration: "none" }}>TRIDENT</Link>
-        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: "1rem", letterSpacing: 3, textTransform: "uppercase", color: c.textMuted }}>CHECKOUT</div>
-        <Link href="/" style={{ color: c.textMuted, fontSize: ".78rem", fontWeight: 700, letterSpacing: 1, textDecoration: "none" }}>✕ CANCEL</Link>
+    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Barlow', sans-serif" }}>
+      <nav style={{ position: "sticky", top: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2.5rem", height: 64, background: "rgba(10,10,10,0.97)", borderBottom: `1px solid #1e1e1e` }}>
+        <Link href="/" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.8rem", letterSpacing: 4, color: "#f5f5f5", textDecoration: "none" }}>TRIDENT</Link>
+        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: "1rem", letterSpacing: 3, textTransform: "uppercase", color: "#666" }}>CHECKOUT</div>
+        <Link href="/" style={{ color: "#666", fontSize: ".78rem", fontWeight: 700, letterSpacing: 1, textDecoration: "none" }}>✕ CANCEL</Link>
       </nav>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "3rem 2rem", display: "grid", gridTemplateColumns: "1fr 380px", gap: "3rem" }}>
@@ -244,7 +242,7 @@ export default function CheckoutPage() {
           <div style={{ display: "flex", gap: "2rem", marginBottom: "2.5rem" }}>
             {[["details","DETAILS"],["payment","PAYMENT"]].map(([s, l]) => (
               <button key={s} onClick={() => step === "payment" && s === "details" && setStep("details")}
-                style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: "1rem", letterSpacing: 2, textTransform: "uppercase", background: "none", border: "none", color: step === s ? c.text : c.border, cursor: "pointer", paddingBottom: ".4rem", borderBottom: step === s ? "2px solid #e5202e" : "2px solid transparent" }}>
+                style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: "1rem", letterSpacing: 2, textTransform: "uppercase", background: "none", border: "none", color: step === s ? "#f5f5f5" : "#1e1e1e", cursor: "pointer", paddingBottom: ".4rem", borderBottom: step === s ? "2px solid #e5202e" : "2px solid transparent" }}>
                 {l}
               </button>
             ))}
@@ -261,12 +259,12 @@ export default function CheckoutPage() {
 
               {!isGuest && savedAddrs.length > 0 && (
                 <div style={{ marginBottom: "1.5rem" }}>
-                  <div style={{ fontSize: ".65rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: c.textMuted, marginBottom: ".75rem" }}>SAVED ADDRESSES</div>
+                  <div style={{ fontSize: ".65rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#666", marginBottom: ".75rem" }}>SAVED ADDRESSES</div>
                   <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
                     {savedAddrs.map(a => (
                       <button key={a._id} onClick={() => applyAddress(a)}
-                        style={{ background: form.address === a.address ? "rgba(229,32,46,.1)" : c.surface, border: `1px solid ${form.address === a.address ? "#e5202e" : c.border}`, color: form.address === a.address ? c.text : c.textMuted, padding: ".5rem 1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".72rem", letterSpacing: 1, cursor: "pointer", textAlign: "left" }}>
-                        <div style={{ color: form.address === a.address ? "#e5202e" : c.textDim, fontSize: ".6rem", fontWeight: 700, letterSpacing: 1.5, marginBottom: ".2rem" }}>{a.label}</div>
+                        style={{ background: form.address === a.address ? "rgba(229,32,46,.1)" : "#0d0d0d", border: `1px solid ${form.address === a.address ? "#e5202e" : "#1e1e1e"}`, color: form.address === a.address ? "#f5f5f5" : "#666", padding: ".5rem 1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".72rem", letterSpacing: 1, cursor: "pointer", textAlign: "left" }}>
+                        <div style={{ color: form.address === a.address ? "#e5202e" : "#888", fontSize: ".6rem", fontWeight: 700, letterSpacing: 1.5, marginBottom: ".2rem" }}>{a.label}</div>
                         <div style={{ fontSize: ".72rem" }}>{a.address}, {a.city}</div>
                       </button>
                     ))}
@@ -284,7 +282,7 @@ export default function CheckoutPage() {
                 <div><label style={LABEL}>PIN Code</label><input style={INP} value={form.zip} onChange={e => setF("zip", e.target.value)} placeholder="600001" /></div>
                 <div><label style={LABEL}>Country</label>
                   <select style={{ ...INP, appearance: "none" }} value={form.country} onChange={e => setF("country", e.target.value)}>
-                    {["India","United States","United Kingdom","Singapore","UAE","Australia"].map(ct => <option key={ct} style={{ background: c.surface }}>{ct}</option>)}
+                    {["India","United States","United Kingdom","Singapore","UAE","Australia"].map(ct => <option key={ct} style={{ background: "#0d0d0d" }}>{ct}</option>)}
                   </select>
                 </div>
               </div>
@@ -292,7 +290,7 @@ export default function CheckoutPage() {
               {!isGuest && (
                 <label style={{ display: "flex", alignItems: "center", gap: ".6rem", marginBottom: "2rem", cursor: "pointer" }}>
                   <input type="checkbox" checked={saveAddr} onChange={e => setSaveAddr(e.target.checked)} style={{ accentColor: "#e5202e", width: 14, height: 14 }} />
-                  <span style={{ fontSize: ".75rem", color: c.textMuted }}>Save this address for future orders</span>
+                  <span style={{ fontSize: ".75rem", color: "#666" }}>Save this address for future orders</span>
                 </label>
               )}
 
@@ -312,7 +310,7 @@ export default function CheckoutPage() {
                 { value: "upi",  label: "📱  UPI" },
                 { value: "cod",  label: "💵  Cash on Delivery" },
               ].map(pm => (
-                <label key={pm.value} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "1rem", border: `1px solid ${form.paymentMethod === pm.value ? "#e5202e" : c.border}`, marginBottom: ".75rem", cursor: "pointer", background: form.paymentMethod === pm.value ? "rgba(229,32,46,.06)" : "transparent" }}>
+                <label key={pm.value} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "1rem", border: `1px solid ${form.paymentMethod === pm.value ? "#e5202e" : "#1e1e1e"}`, marginBottom: ".75rem", cursor: "pointer", background: form.paymentMethod === pm.value ? "rgba(229,32,46,.06)" : "transparent" }}>
                   <input type="radio" name="pm" value={pm.value} checked={form.paymentMethod === pm.value} onChange={e => setF("paymentMethod", e.target.value)} style={{ accentColor: "#e5202e" }} />
                   <span style={{ fontWeight: 700, fontSize: ".88rem" }}>{pm.label}</span>
                 </label>
@@ -341,7 +339,7 @@ export default function CheckoutPage() {
               )}
 
               {form.paymentMethod === "cod" && (
-                <div style={{ marginTop: "1.5rem", background: c.surface, border: `1px solid ${c.border}`, padding: "1rem", fontSize: ".85rem", color: c.textDim }}>
+                <div style={{ marginTop: "1.5rem", background: "#0d0d0d", border: `1px solid #1e1e1e`, padding: "1rem", fontSize: ".85rem", color: "#888" }}>
                   ₹49 COD fee applies. Payment collected at delivery.
                 </div>
               )}
@@ -358,41 +356,41 @@ export default function CheckoutPage() {
                 style={{ width: "100%", background: (placing || !!currencyError) ? "#555" : "#e5202e", color: "#fff", border: "none", padding: "1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".85rem", letterSpacing: 2, textTransform: "uppercase", cursor: (placing || !!currencyError) ? "not-allowed" : "pointer", marginTop: "1rem" }}>
                 {placing ? "PLACING ORDER…" : `PLACE ORDER — ${fmt(total)}`}
               </button>
-              <p style={{ textAlign: "center", color: c.textMuted, fontSize: ".75rem", marginTop: ".75rem" }}>🔒 SSL encrypted. Your payment info is safe.</p>
+              <p style={{ textAlign: "center", color: "#666", fontSize: ".75rem", marginTop: ".75rem" }}>🔒 SSL encrypted. Your payment info is safe.</p>
             </div>
           )}
         </div>
 
         {/* Right: Order Summary */}
         <div>
-          <div style={{ background: c.surface, border: `1px solid ${c.border}`, padding: "1.5rem", position: "sticky", top: 80 }}>
+          <div style={{ background: "#0d0d0d", border: `1px solid #1e1e1e`, padding: "1.5rem", position: "sticky", top: 80 }}>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.3rem", letterSpacing: 2, marginBottom: "1.5rem" }}>ORDER SUMMARY</div>
             <div style={{ maxHeight: 280, overflowY: "auto" }}>
               {cart.map(item => {
                 const fp = finalPrice(item)
                 return (
                   <div key={item._id + item.selectedSize} style={{ display: "flex", gap: ".75rem", marginBottom: "1rem" }}>
-                    <div style={{ position: "relative", width: 60, height: 60, background: c.surface2, flexShrink: 0 }}>
+                    <div style={{ position: "relative", width: 60, height: 60, background: "#111", flexShrink: 0 }}>
                       <Image src={safeImg(item.image)} alt={item.name} fill style={{ objectFit: "cover" }} unoptimized />
                       <span style={{ position: "absolute", top: -6, right: -6, background: "#e5202e", color: "#fff", width: 18, height: 18, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".6rem", fontWeight: 800 }}>{item.qty}</span>
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: ".82rem", fontWeight: 700 }}>{item.name}</div>
-                      {item.selectedSize && <div style={{ color: c.textMuted, fontSize: ".72rem" }}>Size: {item.selectedSize}</div>}
+                      {item.selectedSize && <div style={{ color: "#666", fontSize: ".72rem" }}>Size: {item.selectedSize}</div>}
                       <div style={{ fontWeight: 700, marginTop: ".2rem" }}>{fmt(fp * item.qty)}</div>
                     </div>
                   </div>
                 )
               })}
             </div>
-            <div style={{ borderTop: `1px solid ${c.border}`, marginTop: "1rem", paddingTop: "1rem" }}>
+            <div style={{ borderTop: `1px solid #1e1e1e`, marginTop: "1rem", paddingTop: "1rem" }}>
               {[["Subtotal", fmt(subtotal)], ["Shipping", shipping === 0 ? "FREE" : fmt(shipping)], [`Tax (${taxRate}%)`, fmt(tax)]].map(([l, v]) => (
                 <div key={l} style={{ display: "flex", justifyContent: "space-between", marginBottom: ".6rem", fontSize: ".85rem" }}>
-                  <span style={{ color: c.textMuted }}>{l}</span>
-                  <span style={{ color: v === "FREE" ? "#22c55e" : c.text, fontWeight: 600 }}>{v}</span>
+                  <span style={{ color: "#666" }}>{l}</span>
+                  <span style={{ color: v === "FREE" ? "#22c55e" : "#f5f5f5", fontWeight: 600 }}>{v}</span>
                 </div>
               ))}
-              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, fontSize: "1.1rem", borderTop: `1px solid ${c.border}`, paddingTop: ".75rem", marginTop: ".5rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, fontSize: "1.1rem", borderTop: `1px solid #1e1e1e`, paddingTop: ".75rem", marginTop: ".5rem" }}>
                 <span>TOTAL</span>
                 <span style={{ color: "#e5202e" }}>{fmt(total)}</span>
               </div>

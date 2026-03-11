@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react"
 import Image from "next/image"
 import { useAdminSession } from "@/context/AdminSessionContext"
 import { ROLE_PERMISSIONS } from "@/lib/roles"
+import { useCurrency } from "@/context/CurrencyContext"
 
 type StockStatus = "active" | "sold_out" | "coming_soon"
 type Product = {
@@ -32,6 +33,7 @@ const EMPTY: Omit<Product, "_id"> = { name: "", description: "", price: 0, categ
 
 export default function AdminProductsPage() {
   const session  = useAdminSession()
+  const { symbol, fmt } = useCurrency()
   const perms    = ROLE_PERMISSIONS[session?.role ?? "analyst"]?.products
   const canCreate    = perms?.create ?? false
   const canEdit      = perms?.edit   ?? false
@@ -314,7 +316,7 @@ export default function AdminProductsPage() {
               <div style={{ padding: "1rem 1.2rem" }}>
                 <div style={{ fontSize: ".7rem", color: "#555", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: ".25rem" }}>{p.category}</div>
                 <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: "1.1rem", marginBottom: ".25rem" }}>{p.name}</div>
-                <div style={{ fontWeight: 800, fontSize: "1rem", marginBottom: ".6rem", color: "#f5f5f5" }}>${p.price}</div>
+                <div style={{ fontWeight: 800, fontSize: "1rem", marginBottom: ".6rem", color: "#f5f5f5" }}>{fmt(p.price)}</div>
                 {p.sizes?.length > 0 && (
                   <div style={{ display: "flex", gap: ".25rem", flexWrap: "wrap", marginBottom: ".75rem" }}>
                     {p.sizes.map(s => <span key={s} style={{ border: "1px solid #1e1e1e", color: "#555", fontSize: ".62rem", fontWeight: 700, padding: ".15rem .4rem" }}>{s}</span>)}
@@ -394,7 +396,7 @@ export default function AdminProductsPage() {
               {/* Name & Price */}
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1rem" }}>
                 <div><label style={LBL}>Product Name *</label><input style={INP} value={form.name} onChange={e => setF("name", e.target.value)} placeholder="Air Flux X — Pro" /></div>
-                <div><label style={LBL}>Price ($) *</label><input style={INP} type="number" value={form.price || ""} onChange={e => setF("price", parseFloat(e.target.value)||0)} placeholder="199" /></div>
+                <div><label style={LBL}>Price ({symbol}) *</label><input style={INP} type="number" value={form.price || ""} onChange={e => setF("price", parseFloat(e.target.value)||0)} placeholder="199" /></div>
               </div>
 
               {/* Description */}

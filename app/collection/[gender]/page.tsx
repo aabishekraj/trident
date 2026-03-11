@@ -4,10 +4,14 @@ import { useEffect, useState, use } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useCurrency } from "@/context/CurrencyContext"
+
+type RecentItem = { _id: string; name: string; price: number; image?: string }
 
 type Product = {
   _id: string; name: string; price: number; image?: string; tag?: string
   category?: string; sizes?: string[]; stockStatus?: "active" | "sold_out" | "coming_soon"
+  stockQuantity?: number;
 }
 
 const GENDER_META: Record<string, { label: string; hero: string; sub: { label: string; slug: string }[] }> = {
@@ -64,15 +68,27 @@ function safeImg(url?: string) {
     : "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80"
 }
 
+function trackRecentlyViewed(p: Product) {
+  try {
+    const key = "trident_recently_viewed"
+    const prev = JSON.parse(localStorage.getItem(key) || "[]") as RecentItem[]
+    const filtered = prev.filter(v => v._id !== p._id)
+    const updated = [{ _id: p._id, name: p.name, price: p.price, image: p.image }, ...filtered].slice(0, 8)
+    localStorage.setItem(key, JSON.stringify(updated))
+  } catch { /* ignore */ }
+}
+
 export default function GenderCollectionPage({ params }: { params: Promise<{ gender: string }> }) {
   const { gender } = use(params)
   const router   = useRouter()
   const meta     = GENDER_META[gender.toLowerCase()] || GENDER_META["men"]
+  const { fmt }  = useCurrency()
 
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading,  setLoading]  = useState(true)
-  const [sort,     setSort]     = useState("newest")
-  const [filter,   setFilter]   = useState("")
+  const [products,       setProducts]       = useState<Product[]>([])
+  const [loading,        setLoading]        = useState(true)
+  const [sort,           setSort]           = useState("newest")
+  const [filter,         setFilter]         = useState("")
+  const [recentlyViewed, setRecentlyViewed] = useState<RecentItem[]>([])
 
   useEffect(() => {
     setLoading(true)
@@ -82,6 +98,14 @@ export default function GenderCollectionPage({ params }: { params: Promise<{ gen
       .catch(() => setProducts([]))
       .finally(() => setLoading(false))
   }, [gender, meta.label])
+
+  // Load recently viewed from localStorage (client only)
+  useEffect(() => {
+    try {
+      const rv = JSON.parse(localStorage.getItem("trident_recently_viewed") || "[]") as RecentItem[]
+      setRecentlyViewed(rv.slice(0, 6))
+    } catch { /* ignore */ }
+  }, [gender])
 
   const sorted = [...products].filter(p =>
     !filter || p.category?.toLowerCase().includes(filter.toLowerCase())
@@ -171,7 +195,7 @@ export default function GenderCollectionPage({ params }: { params: Promise<{ gen
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 1, background: "#1a1a1a" }}>
             {sorted.map(p => (
-              <div key={p._id} onClick={() => router.push(`/product/${p._id}`)}
+              <div key={p._id} onClick={() => { trackRecentlyViewed(p); router.push(`/product/${p._id}`) }}
                 style={{ background: "#0a0a0a", cursor: "pointer", overflow: "hidden", transition: "transform .2s" }}
                 onMouseEnter={e => (e.currentTarget.style.transform = "translateY(-2px)")}
                 onMouseLeave={e => (e.currentTarget.style.transform = "")}>
@@ -181,6 +205,12 @@ export default function GenderCollectionPage({ params }: { params: Promise<{ gen
                     onMouseLeave={e => ((e.target as HTMLElement).style.transform = "")} />
                   {p.tag && (
                     <span style={{ position: "absolute", top: "1rem", left: "1rem", background: "#e5202e", color: "#fff", fontSize: ".62rem", fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", padding: ".25rem .6rem" }}>{p.tag}</span>
+                  )}
+                  {/* Low stock warning */}
+                  {p.stockStatus === "active" && typeof p.stockQuantity === "number" && p.stockQuantity > 0 && p.stockQuantity <= 5 && (
+                    <span style={{ position: "absolute", bottom: "1rem", left: "1rem", background: "rgba(234,179,8,.9)", color: "#000", fontSize: ".6rem", fontWeight: 900, letterSpacing: 1, padding: ".2rem .55rem", textTransform: "uppercase" }}>
+                      Only {p.stockQuantity} left!
+                    </span>
                   )}
                   {p.stockStatus === "sold_out" && (
                     <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -196,7 +226,7 @@ export default function GenderCollectionPage({ params }: { params: Promise<{ gen
                 <div style={{ padding: "1rem 1.2rem" }}>
                   <div style={{ fontSize: ".65rem", color: "#444", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: ".25rem" }}>{p.category}</div>
                   <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: "1rem", marginBottom: ".4rem" }}>{p.name}</div>
-                  <div style={{ fontWeight: 800, color: "#f5f5f5" }}>${p.price}</div>
+                  <div style={{ fontWeight: 800, color: "#f5f5f5" }}>{fmt(p.price)}</div>
                   {p.sizes && p.sizes.length > 0 && (
                     <div style={{ display: "flex", gap: ".25rem", flexWrap: "wrap", marginTop: ".5rem" }}>
                       {p.sizes.slice(0, 4).map(s => (
@@ -211,6 +241,31 @@ export default function GenderCollectionPage({ params }: { params: Promise<{ gen
           </div>
         )}
       </div>
+
+      {/* ── Recently Viewed ──────────────────────────────────────────── */}
+      {recentlyViewed.length > 0 && (
+        <div style={{ borderTop: "1px solid #1a1a1a", padding: "3rem 2.5rem" }}>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.4rem", letterSpacing: 3, marginBottom: "1.5rem" }}>
+            RECENTLY VIEWED
+          </div>
+          <div style={{ display: "flex", gap: "1px", background: "#1a1a1a", overflowX: "auto" }}>
+            {recentlyViewed.map(rv => (
+              <div key={rv._id} onClick={() => router.push(`/product/${rv._id}`)}
+                style={{ flex: "0 0 180px", background: "#0a0a0a", cursor: "pointer", overflow: "hidden" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#0d0d0d")}
+                onMouseLeave={e => (e.currentTarget.style.background = "#0a0a0a")}>
+                <div style={{ position: "relative", aspectRatio: "1", background: "#111" }}>
+                  <Image src={safeImg(rv.image)} alt={rv.name} fill style={{ objectFit: "cover" }} unoptimized />
+                </div>
+                <div style={{ padding: ".75rem 1rem" }}>
+                  <div style={{ fontSize: ".78rem", fontWeight: 700, marginBottom: ".2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rv.name}</div>
+                  <div style={{ fontWeight: 800, fontSize: ".85rem", color: "#e5202e" }}>{fmt(rv.price)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
