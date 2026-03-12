@@ -28,6 +28,16 @@ export async function POST(req: NextRequest) {
     if (!body.name || !body.address || !body.city || !body.state || !body.zip) {
       return NextResponse.json({ success: false, error: "name, address, city, state, zip required" }, { status: 400 })
     }
+    // Dedup: if identical address already exists for this customer, skip
+    const existing = await CustomerAddress.findOne({
+      customerEmail: email,
+      address: body.address,
+      city: body.city,
+      state: body.state,
+      zip: body.zip,
+    })
+    if (existing) return NextResponse.json({ success: true, data: existing })
+
     const count = await CustomerAddress.countDocuments({ customerEmail: email })
     if (count >= 5) return NextResponse.json({ success: false, error: "Maximum 5 addresses allowed" }, { status: 400 })
 
