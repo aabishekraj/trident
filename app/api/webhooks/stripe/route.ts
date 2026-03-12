@@ -4,12 +4,14 @@ import { connectDB } from "@/lib/mongodb"
 import Order from "@/models/Order"
 import { sendOrderConfirmation } from "@/lib/email"
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
-
 // Disable Next.js body parsing — Stripe needs the raw body for signature verification
 export const config = { api: { bodyParser: false } }
 
 export async function POST(req: NextRequest) {
+  if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
+    return NextResponse.json({ error: "Stripe not configured" }, { status: 503 })
+  }
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
   const body = await req.text()
   const sig  = req.headers.get("stripe-signature") || ""
 
@@ -36,7 +38,7 @@ export async function POST(req: NextRequest) {
       const order = await Order.findByIdAndUpdate(
         mongoId,
         { paymentStatus: "paid", status: "processing" },
-        { new: true }
+        { returnDocument: "after" }
       )
 
       if (order) {

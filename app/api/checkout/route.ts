@@ -4,13 +4,16 @@ import { connectDB } from "@/lib/mongodb"
 import Order from "@/models/Order"
 import SiteSettings from "@/models/SiteSettings"
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
 
 // Stripe currency codes
 const STRIPE_CURRENCY: Record<string, string> = { USD: "usd", INR: "inr", EUR: "eur" }
 
 export async function POST(req: Request) {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return NextResponse.json({ error: "Card payments are not configured. Please use UPI or Cash on Delivery." }, { status: 503 })
+  }
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
   try {
     const body = await req.json()
     const { cart, customer, shippingAddress } = body
