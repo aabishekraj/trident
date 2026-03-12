@@ -37,15 +37,21 @@ function Badge({ status }: { status: string }) {
 function OrderModal({ order, onClose, onStatusChange, fmt }: {
   order: IOrder
   onClose: () => void
-  onStatusChange: (id: string, status: OrderStatus) => void
+  onStatusChange: (id: string, status: OrderStatus, reason?: string) => void
   fmt: (n: number) => string
 }) {
   const [status, setStatus] = useState<OrderStatus>(order.status ?? "pending")
   const [saving, setSaving] = useState(false)
+  const [cancelReason, setCancelReason] = useState("")
+  const [cancelError, setCancelError] = useState("")
 
   async function save() {
+    if (status === "cancelled" && !cancelReason.trim()) {
+      setCancelError("Cancellation reason is required.")
+      return
+    }
     setSaving(true)
-    await onStatusChange(order._id!, status)
+    await onStatusChange(order._id!, status, status === "cancelled" ? cancelReason.trim() : undefined)
     setSaving(false)
     onClose()
   }
@@ -132,6 +138,20 @@ function OrderModal({ order, onClose, onStatusChange, fmt }: {
             </div>
           </div>
 
+          {status === "cancelled" && (
+            <div>
+              <div style={{ fontSize: ".65rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#e5202e", marginBottom: ".5rem" }}>Cancellation Reason *</div>
+              <textarea
+                value={cancelReason}
+                onChange={e => { setCancelReason(e.target.value); setCancelError("") }}
+                placeholder="Enter reason for cancellation (required)…"
+                rows={3}
+                style={{ width: "100%", background: "#0a0a0a", border: `1px solid ${cancelError ? "#e5202e" : "#1e1e1e"}`, color: "#f5f5f5", padding: ".85rem 1rem", fontFamily: "'Barlow', sans-serif", fontSize: ".85rem", outline: "none", resize: "vertical", boxSizing: "border-box" }}
+              />
+              {cancelError && <div style={{ color: "#e5202e", fontSize: ".75rem", fontWeight: 600, marginTop: ".3rem" }}>{cancelError}</div>}
+            </div>
+          )}
+
           {order.notes && (
             <div>
               <div style={{ fontSize: ".65rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#555", marginBottom: ".5rem" }}>Notes</div>
@@ -145,7 +165,8 @@ function OrderModal({ order, onClose, onStatusChange, fmt }: {
             CLOSE
           </button>
           <button onClick={save} disabled={saving || status === order.status} style={{
-            background: (saving || status === order.status) ? "#222" : "#e5202e", color: (saving || status === order.status) ? "#555" : "#fff", border: "none",
+            background: (saving || status === order.status) ? "#222" : "#e5202e",
+            color: (saving || status === order.status) ? "#555" : "#fff", border: "none",
             padding: ".65rem 1.5rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".78rem",
             letterSpacing: 1.5, textTransform: "uppercase", cursor: (saving || status === order.status) ? "not-allowed" : "pointer",
           }}>
@@ -188,9 +209,11 @@ export default function AdminOrdersPage() {
 
   useEffect(() => { load(1) }, [load])
 
-  async function updateStatus(id: string, status: OrderStatus) {
+  async function updateStatus(id: string, status: OrderStatus, reason?: string) {
     try {
-      const r = await fetch(`/api/orders/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) })
+      const body: Record<string, unknown> = { status }
+      if (reason) body.notes = reason
+      const r = await fetch(`/api/orders/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
       const j = await r.json()
       if (j.success) {
         showToast("Order status updated!")

@@ -5,6 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useCurrency } from "@/context/CurrencyContext"
+import { useCart } from "@/context/CartContext"
 
 type CartItem = {
   _id: string; name: string; price: number; image?: string
@@ -26,6 +27,7 @@ function finalPrice(p: CartItem) {
 export default function CheckoutPage() {
   const router = useRouter()
   const { fmt, getShipping, mismatch, taxRate, currency, shippingFreeThreshold } = useCurrency()
+  const { clearCart } = useCart()
 
   const INP: React.CSSProperties = {
     width: "100%", background: "#0d0d0d", border: "1px solid #1e1e1e",
@@ -191,6 +193,7 @@ export default function CheckoutPage() {
         if (j.url) {
           fetch("/api/cart-session", { method: "DELETE", headers: { "x-customer-email": customerEmail } }).catch(() => {})
           sessionStorage.removeItem("trident_cart")
+          clearCart()
           window.location.href = j.url
           return
         }
@@ -215,6 +218,7 @@ export default function CheckoutPage() {
           fetch("/api/cart-session", { method: "DELETE", headers: { "x-customer-email": customerEmail } }).catch(() => {})
           setOrderId(j.data.orderId)
           sessionStorage.removeItem("trident_cart")
+          clearCart()
           setStep("confirm")
           return
         }
