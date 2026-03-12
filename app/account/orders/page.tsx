@@ -67,7 +67,7 @@ export default function MyOrdersPage() {
     const saved = localStorage.getItem("trident_customer")
     if (!saved) return
     const c = JSON.parse(saved)
-    fetch(`/api/orders?email=${encodeURIComponent(c.email)}&limit=50`)
+    fetch(`/api/orders?limit=50`, { headers: { "x-customer-email": c.email } })
       .then(r => r.json())
       .then(j => setOrders(j.data || []))
       .catch(() => {})
