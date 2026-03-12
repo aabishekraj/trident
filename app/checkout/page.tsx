@@ -38,7 +38,7 @@ export default function CheckoutPage() {
   }
 
   const [cart, setCart]             = useState<CartItem[]>([])
-  const [step, setStep]             = useState<"details" | "payment" | "confirm">("details")
+  const [step, setStep]             = useState<"auth" | "details" | "payment" | "confirm">("auth")
   const [placing, setPlacing]       = useState(false)
   const [orderId, setOrderId]       = useState("")
   const [orderError, setOrderError] = useState("")
@@ -46,6 +46,14 @@ export default function CheckoutPage() {
   const [savedAddrs, setSavedAddrs] = useState<SavedAddress[]>([])
 
   const [currencyError, setCurrencyError] = useState("")
+
+  // OTP auth state (shown when not already signed in)
+  const [authStep, setAuthStep]     = useState<"email" | "verify">("email")
+  const [authEmail, setAuthEmail]   = useState("")
+  const [authName,  setAuthName]    = useState("")
+  const [authOtp,   setAuthOtp]     = useState("")
+  const [authLoading, setAuthLoading] = useState(false)
+  const [authError, setAuthError]   = useState("")
 
   const [form, setForm] = useState({
     name: "", email: "", phone: "", address: "", city: "", state: "", zip: "", country: "India",
@@ -60,35 +68,73 @@ export default function CheckoutPage() {
     if (saved) setCart(JSON.parse(saved))
 
     if (cust) {
-      const c = JSON.parse(cust)
-      setForm(f => ({ ...f, name: c.name || "", email: c.email || "" }))
-      setIsGuest(false)
-
-      fetch("/api/addresses", { headers: { "x-customer-email": c.email } })
-        .then(r => r.json())
-        .then(j => {
-          if (j.success && j.data?.length) {
-            setSavedAddrs(j.data)
-            const def = j.data.find((a: SavedAddress) => a.isDefault) || j.data[0]
-            if (def) setForm(f => ({ ...f, name: def.name || f.name, phone: def.phone || f.phone, address: def.address, city: def.city, state: def.state, zip: def.zip, country: def.country }))
-          }
-        })
-        .catch(() => {})
-
-      if (saved) {
-        const items = JSON.parse(saved)
-        const total = items.reduce((s: number, i: CartItem) => s + finalPrice(i) * i.qty, 0)
-        fetch("/api/cart-session", { method: "POST", headers: { "Content-Type": "application/json", "x-customer-email": c.email }, body: JSON.stringify({ items, total, customerName: c.name }) }).catch(() => {})
-      }
-    } else {
-      setIsGuest(true)
+      loadCustomer(JSON.parse(cust), saved)
     }
+    // if no cust: step stays "auth"
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function loadCustomer(c: { name?: string; email: string }, savedCart?: string | null) {
+    setForm(f => ({ ...f, name: c.name || "", email: c.email || "" }))
+    setIsGuest(false)
+    setStep("details")
+
+    fetch("/api/addresses", { headers: { "x-customer-email": c.email } })
+      .then(r => r.json())
+      .then(j => {
+        if (j.success && j.data?.length) {
+          setSavedAddrs(j.data)
+          const def = j.data.find((a: SavedAddress) => a.isDefault) || j.data[0]
+          if (def) setForm(f => ({ ...f, name: def.name || f.name, phone: def.phone || f.phone, address: def.address, city: def.city, state: def.state, zip: def.zip, country: def.country }))
+        }
+      })
+      .catch(() => {})
+
+    const cart = savedCart || sessionStorage.getItem("trident_cart")
+    if (cart) {
+      const items = JSON.parse(cart)
+      const total = items.reduce((s: number, i: CartItem) => s + finalPrice(i) * i.qty, 0)
+      fetch("/api/cart-session", { method: "POST", headers: { "Content-Type": "application/json", "x-customer-email": c.email }, body: JSON.stringify({ items, total, customerName: c.name }) }).catch(() => {})
+    }
+  }
 
   const subtotal = cart.reduce((s, i) => s + finalPrice(i) * i.qty, 0)
   const shipping = getShipping(subtotal, form.country)
   const tax      = +(subtotal * (taxRate / 100)).toFixed(2)
   const total    = +(subtotal + shipping + tax).toFixed(2)
+
+  async function sendOtp() {
+    if (!authEmail) return setAuthError("Please enter your email.")
+    setAuthLoading(true); setAuthError("")
+    try {
+      const res = await fetch("/api/auth/customer", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: authEmail, name: authName, action: "sendOtp" }),
+      })
+      const j = await res.json()
+      if (j.success) setAuthStep("verify")
+      else setAuthError(j.error || "Failed to send OTP.")
+    } catch { setAuthError("Network error. Please try again.") }
+    setAuthLoading(false)
+  }
+
+  async function verifyOtp() {
+    if (!authOtp) return setAuthError("Enter the OTP sent to your email.")
+    setAuthLoading(true); setAuthError("")
+    try {
+      const res = await fetch("/api/auth/customer", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: authEmail, name: authName, otp: authOtp, action: "verifyOtp" }),
+      })
+      const j = await res.json()
+      if (j.success) {
+        localStorage.setItem("trident_customer", JSON.stringify(j.data))
+        loadCustomer(j.data)
+      } else {
+        setAuthError(j.error || "Invalid OTP.")
+      }
+    } catch { setAuthError("Network error. Please try again.") }
+    setAuthLoading(false)
+  }
 
   function setF(key: string, val: string) {
     setForm(f => ({ ...f, [key]: val }))
@@ -220,6 +266,83 @@ export default function CheckoutPage() {
     </div>
   )
 
+  // ── Auth gate (shown when not signed in) ────────────────────────────────────
+  if (step === "auth") return (
+    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", display: "flex", flexDirection: "column", fontFamily: "'Barlow', sans-serif" }}>
+      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2.5rem", height: 64, borderBottom: "1px solid #1e1e1e" }}>
+        <Link href="/" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.8rem", letterSpacing: 4, color: "#f5f5f5", textDecoration: "none" }}>TRIDENT</Link>
+        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: "1rem", letterSpacing: 3, textTransform: "uppercase", color: "#666" }}>CHECKOUT</div>
+        <Link href="/" style={{ color: "#666", fontSize: ".78rem", fontWeight: 700, letterSpacing: 1, textDecoration: "none" }}>✕ CANCEL</Link>
+      </nav>
+
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "3rem 2rem" }}>
+        <div style={{ width: "100%", maxWidth: 420 }}>
+
+          <div style={{ fontSize: ".65rem", fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", color: "#e5202e", marginBottom: ".5rem" }}>
+            Step 1 of 3
+          </div>
+          <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "2.5rem", letterSpacing: 2, marginBottom: ".5rem" }}>
+            {authStep === "email" ? "VERIFY YOUR EMAIL" : "ENTER YOUR OTP"}
+          </h1>
+          <p style={{ color: "#555", fontSize: ".88rem", marginBottom: "2.5rem", lineHeight: 1.6 }}>
+            {authStep === "email"
+              ? "We'll send a one-time code to confirm your identity before checkout."
+              : `A 6-digit code was sent to ${authEmail}. Enter it below to continue.`}
+          </p>
+
+          {authStep === "email" ? (
+            <div>
+              <div style={{ marginBottom: "1rem" }}>
+                <label style={{ display: "block", fontSize: ".7rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#666", marginBottom: ".5rem" }}>Full Name</label>
+                <input
+                  style={{ width: "100%", background: "#0d0d0d", border: "1px solid #1e1e1e", color: "#f5f5f5", padding: ".85rem 1rem", fontFamily: "'Barlow', sans-serif", fontSize: ".92rem", outline: "none" }}
+                  placeholder="John Doe" value={authName} onChange={e => setAuthName(e.target.value)}
+                  onFocus={e => (e.target.style.borderColor = "#333")} onBlur={e => (e.target.style.borderColor = "#1e1e1e")} />
+              </div>
+              <div style={{ marginBottom: "1.5rem" }}>
+                <label style={{ display: "block", fontSize: ".7rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#666", marginBottom: ".5rem" }}>Email Address *</label>
+                <input
+                  style={{ width: "100%", background: "#0d0d0d", border: "1px solid #1e1e1e", color: "#f5f5f5", padding: ".85rem 1rem", fontFamily: "'Barlow', sans-serif", fontSize: ".92rem", outline: "none" }}
+                  type="email" placeholder="john@email.com" value={authEmail} onChange={e => setAuthEmail(e.target.value)}
+                  onFocus={e => (e.target.style.borderColor = "#333")} onBlur={e => (e.target.style.borderColor = "#1e1e1e")}
+                  onKeyDown={e => e.key === "Enter" && sendOtp()} />
+              </div>
+              {authError && <div style={{ color: "#e5202e", fontSize: ".82rem", fontWeight: 600, marginBottom: "1rem" }}>{authError}</div>}
+              <button onClick={sendOtp} disabled={authLoading}
+                style={{ width: "100%", background: authLoading ? "#333" : "#e5202e", color: "#fff", border: "none", padding: "1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".85rem", letterSpacing: 2, textTransform: "uppercase", cursor: authLoading ? "not-allowed" : "pointer" }}>
+                {authLoading ? "SENDING…" : "SEND OTP →"}
+              </button>
+              <div style={{ marginTop: "1.5rem", textAlign: "center", fontSize: ".78rem", color: "#444" }}>
+                Already have an account?{" "}
+                <Link href={`/signin?redirect=/checkout`} style={{ color: "#888", fontWeight: 700 }}>Sign in here</Link>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ marginBottom: "1.5rem" }}>
+                <label style={{ display: "block", fontSize: ".7rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#666", marginBottom: ".5rem" }}>6-Digit OTP</label>
+                <input
+                  style={{ width: "100%", background: "#0d0d0d", border: "1px solid #1e1e1e", color: "#f5f5f5", padding: ".85rem 1rem", fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.8rem", letterSpacing: "1rem", textAlign: "center", outline: "none" }}
+                  placeholder="------" maxLength={6} value={authOtp}
+                  onChange={e => setAuthOtp(e.target.value.replace(/\D/g, ""))}
+                  onKeyDown={e => e.key === "Enter" && verifyOtp()} />
+              </div>
+              {authError && <div style={{ color: "#e5202e", fontSize: ".82rem", fontWeight: 600, marginBottom: "1rem" }}>{authError}</div>}
+              <button onClick={verifyOtp} disabled={authLoading}
+                style={{ width: "100%", background: authLoading ? "#333" : "#e5202e", color: "#fff", border: "none", padding: "1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".85rem", letterSpacing: 2, textTransform: "uppercase", cursor: authLoading ? "not-allowed" : "pointer", marginBottom: ".75rem" }}>
+                {authLoading ? "VERIFYING…" : "VERIFY & CONTINUE →"}
+              </button>
+              <button onClick={() => { setAuthStep("email"); setAuthOtp(""); setAuthError("") }}
+                style={{ width: "100%", background: "transparent", color: "#666", border: "1px solid #1e1e1e", padding: ".75rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", cursor: "pointer" }}>
+                ← CHANGE EMAIL
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "'Barlow', sans-serif" }}>
       <nav style={{ position: "sticky", top: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2.5rem", height: 64, background: "rgba(10,10,10,0.97)", borderBottom: `1px solid #1e1e1e` }}>
@@ -232,13 +355,6 @@ export default function CheckoutPage() {
 
         {/* Left: Form */}
         <div>
-          {isGuest && (
-            <div style={{ background: "rgba(234,179,8,.08)", border: "1px solid rgba(234,179,8,.25)", padding: ".85rem 1rem", marginBottom: "2rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: ".5rem" }}>
-              <span style={{ fontSize: ".78rem", color: "#eab308" }}>🛒 Checking out as guest</span>
-              <Link href={`/signin?redirect=/checkout`} style={{ fontSize: ".72rem", fontWeight: 800, color: "#eab308", textDecoration: "none", letterSpacing: 1 }}>SIGN IN FOR FASTER CHECKOUT →</Link>
-            </div>
-          )}
-
           <div style={{ display: "flex", gap: "2rem", marginBottom: "2.5rem" }}>
             {[["details","DETAILS"],["payment","PAYMENT"]].map(([s, l]) => (
               <button key={s} onClick={() => step === "payment" && s === "details" && setStep("details")}
