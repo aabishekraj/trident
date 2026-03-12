@@ -248,7 +248,7 @@ export default function CheckoutPage() {
         <div style={{ background: "#0d0d0d", border: `1px solid #1e1e1e`, padding: "1.5rem", marginBottom: "2rem", textAlign: "left" }}>
           <div style={{ fontSize: ".7rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#666", marginBottom: "1rem" }}>Order Summary</div>
           {cart.map(i => (
-            <div key={i._id} style={{ display: "flex", justifyContent: "space-between", marginBottom: ".5rem", fontSize: ".85rem" }}>
+            <div key={`${i._id}-${i.selectedSize}`} style={{ display: "flex", justifyContent: "space-between", marginBottom: ".5rem", fontSize: ".85rem" }}>
               <span style={{ color: "#888" }}>{i.name} {i.selectedSize && `(${i.selectedSize})`} × {i.qty}</span>
               <span style={{ fontWeight: 700 }}>{fmt(finalPrice(i) * i.qty)}</span>
             </div>
