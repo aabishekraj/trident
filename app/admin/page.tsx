@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { IAnalyticsSummary, IOrder } from "@/types"
+import { useCurrency } from "@/context/CurrencyContext"
 
 // ── Shared StatusBadge (used here + orders page) ──────────────────────────────
 export function StatusBadge({ status }: { status: string }) {
@@ -52,6 +53,7 @@ const QUICK = [
 
 // ── Dashboard Page ────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
+  const { fmt } = useCurrency()
   const [analytics, setAnalytics] = useState<IAnalyticsSummary | null>(null)
   const [recent,    setRecent]    = useState<IOrder[]>([])
   const [prodCount, setProdCount] = useState(0)
@@ -103,9 +105,9 @@ export default function AdminDashboard() {
 
       {/* ── KPI Cards ───────────────────────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(210px,1fr))", gap: "1px", background: "#1e1e1e", marginBottom: "2.5rem" }}>
-        <StatCard label="Total Revenue"   value={`$${a.totalRevenue.toLocaleString()}`}              sub="All time"                     color="#22c55e" icon="💰" loading={loading} />
+        <StatCard label="Total Revenue"   value={fmt(a.totalRevenue)}                                  sub="All time"                     color="#22c55e" icon="💰" loading={loading} />
         <StatCard label="Total Orders"    value={String(a.totalOrders)}                               sub={`${a.pendingOrders} pending`} color="#3b82f6" icon="📦" loading={loading} />
-        <StatCard label="Avg Order Value" value={`$${Number(a.avgOrderValue).toFixed(2)}`}            sub="Per transaction"             color="#a855f7" icon="📊" loading={loading} />
+        <StatCard label="Avg Order Value" value={fmt(Number(a.avgOrderValue))}                        sub="Per transaction"             color="#a855f7" icon="📊" loading={loading} />
         <StatCard label="Products"        value={String(prodCount)}                                   sub="Listed in store"             color="#e5202e" icon="👟" loading={loading} />
       </div>
 
@@ -173,7 +175,7 @@ export default function AdminDashboard() {
                         <div style={{ fontWeight: 700, fontSize: ".82rem" }}>{o.customer?.name}</div>
                         <div style={{ color: "#555", fontSize: ".72rem" }}>{o.customer?.email}</div>
                       </td>
-                      <td style={{ padding: ".8rem 1rem", fontWeight: 800, fontSize: ".88rem" }}>${Number(o.totalAmount).toFixed(2)}</td>
+                      <td style={{ padding: ".8rem 1rem", fontWeight: 800, fontSize: ".88rem" }}>{fmt(Number(o.totalAmount))}</td>
                       <td style={{ padding: ".8rem 1rem" }}><StatusBadge status={o.status ?? "pending"} /></td>
                       <td style={{ padding: ".8rem 1rem", color: "#555", fontSize: ".72rem" }}>
                         {o.createdAt ? new Date(o.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}

@@ -13,6 +13,28 @@ export async function GET() {
   }
 }
 
+export async function DELETE(req: NextRequest) {
+  const denied = checkPermission(req, "coupons", "delete")
+  if (denied) return NextResponse.json({ success: false, error: denied.error }, { status: denied.status })
+  try {
+    await connectDB()
+    const body = await req.json()
+    let deleted = 0
+    if (body.all) {
+      const r = await Coupon.deleteMany({})
+      deleted = r.deletedCount
+    } else if (Array.isArray(body.ids) && body.ids.length) {
+      const r = await Coupon.deleteMany({ _id: { $in: body.ids } })
+      deleted = r.deletedCount
+    } else {
+      return NextResponse.json({ success: false, error: "Provide ids[] or all:true" }, { status: 400 })
+    }
+    return NextResponse.json({ success: true, deleted })
+  } catch (e) {
+    return NextResponse.json({ success: false, error: String(e) }, { status: 500 })
+  }
+}
+
 export async function POST(req: NextRequest) {
   const denied = checkPermission(req, "coupons", "create")
   if (denied) return NextResponse.json({ success: false, error: denied.error }, { status: denied.status })

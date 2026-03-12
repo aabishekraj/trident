@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { useCart } from "@/context/CartContext"
+import { useCurrency } from "@/context/CurrencyContext"
 
 type Product = {
   _id: string; name: string; price: number; image?: string
@@ -29,6 +30,7 @@ function SearchContent() {
   const params  = useSearchParams()
   const router  = useRouter()
   const { addToCart } = useCart()
+  const { fmt } = useCurrency()
 
   const [query,    setQuery]    = useState(params.get("q") || "")
   const [products, setProducts] = useState<Product[]>([])
@@ -165,8 +167,8 @@ function SearchContent() {
                         <div style={{ marginBottom: ".3rem" }}><Stars rating={p.avgRating || 0} /></div>
                       )}
                       <div style={{ display: "flex", gap: ".5rem", alignItems: "baseline" }}>
-                        <span style={{ fontWeight: 800 }}>${fp.toFixed(2)}</span>
-                        {p.couponDiscount ? <span style={{ color: "#555", fontSize: ".78rem", textDecoration: "line-through" }}>${p.price.toFixed(2)}</span> : null}
+                        <span style={{ fontWeight: 800 }}>{fmt(fp)}</span>
+                        {p.couponDiscount ? <span style={{ color: "#555", fontSize: ".78rem", textDecoration: "line-through" }}>{fmt(p.price)}</span> : null}
                       </div>
                     </div>
                   </Link>

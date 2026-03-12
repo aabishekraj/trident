@@ -534,7 +534,7 @@ export default function HomePage() {
         <div style={{ padding: "1.2rem 1.5rem", borderTop: "1px solid #1e1e1e" }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, fontSize: "1.1rem", marginBottom: "1.2rem" }}>
             <span>SUBTOTAL</span>
-            <span>${cartSubtotal.toFixed(2)}</span>
+            <span>{fmt(cartSubtotal)}</span>
           </div>
           <button onClick={handleCheckout} disabled={cart.length === 0}
             style={{ width: "100%", background: cart.length ? "#f5f5f5" : "#222", color: cart.length ? "#0a0a0a" : "#555", border: "none", padding: "1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".85rem", letterSpacing: 2, textTransform: "uppercase", cursor: cart.length ? "pointer" : "not-allowed", transition: "all .2s", marginBottom: ".75rem" }}

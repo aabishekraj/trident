@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { IOrder, IOrderItem, OrderStatus } from "@/types";
+import { useCurrency } from "@/context/CurrencyContext";
 
 const PRODUCTS = [
   { id: "p1", name: "Air Flux X — Pro",    price: 189 },
@@ -45,6 +46,7 @@ const label: React.CSSProperties = {
 };
 
 export default function OrderModal({ open, order, onClose, onSave }: OrderModalProps) {
+  const { fmt } = useCurrency()
   const editing = !!order;
 
   const blank = {
@@ -197,7 +199,7 @@ export default function OrderModal({ open, order, onClose, onSave }: OrderModalP
               <select style={inp} value={f.productId} onChange={(e) => handleProductChange(e.target.value)}>
                 {PRODUCTS.map((p) => (
                   <option key={p.id} value={p.id} style={{ background: "#111" }}>
-                    {p.name} — ${p.price}
+                    {p.name} — {fmt(p.price)}
                   </option>
                 ))}
               </select>
@@ -210,7 +212,7 @@ export default function OrderModal({ open, order, onClose, onSave }: OrderModalP
           <div style={{ background: "#0a0a0a", padding: "1rem", border: "1px solid #1a1a1a" }}>
             <div style={{ fontSize: ".78rem", color: "#888", marginBottom: ".3rem" }}>ORDER TOTAL</div>
             <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "1.8rem" }}>
-              ${(f.productPrice * f.qty).toFixed(2)}
+              {fmt(f.productPrice * f.qty)}
             </div>
           </div>
           <div>

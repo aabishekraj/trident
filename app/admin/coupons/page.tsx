@@ -38,6 +38,8 @@ export default function AdminCouponsPage() {
   const [form, setForm]         = useState<typeof EMPTY>(EMPTY)
   const [saving, setSaving]     = useState(false)
   const [toast, setToast]       = useState<{msg:string;ok:boolean}|null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   useEffect(() => { load() }, [])
 
@@ -95,6 +97,25 @@ export default function AdminCouponsPage() {
     } catch { showToast("Failed.", false) }
   }
 
+  function toggleSelect(id: string) {
+    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+
+  async function bulkDelete(all: boolean) {
+    const count = all ? coupons.length : selected.size
+    if (!count) return
+    if (!confirm(all ? `Delete ALL ${count} coupons? This cannot be undone.` : `Delete ${count} selected coupon${count > 1 ? "s" : ""}?`)) return
+    setBulkDeleting(true)
+    try {
+      const body = all ? { all: true } : { ids: Array.from(selected) }
+      const r = await fetch("/api/coupons", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      const j = await r.json()
+      if (j.success) { showToast(`Deleted ${j.deleted} coupon${j.deleted !== 1 ? "s" : ""}.`); setSelected(new Set()); load() }
+      else showToast(j.error || "Failed.", false)
+    } catch { showToast("Error.", false) }
+    setBulkDeleting(false)
+  }
+
   function showToast(msg: string, ok = true) { setToast({ msg, ok }); setTimeout(() => setToast(null), 3000) }
 
   function isExpired(d: string) { return d && new Date(d) < new Date() }
@@ -102,15 +123,40 @@ export default function AdminCouponsPage() {
   return (
     <div style={{ fontFamily: "'Barlow', sans-serif" }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2rem" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2rem", flexWrap: "wrap", gap: "1rem" }}>
         <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "2rem", letterSpacing: 2 }}>
           COU<span style={{ color: "#e5202e" }}>PONS</span>
         </h1>
-        {canCreate && (
-          <button onClick={openAdd} style={{ background: "#e5202e", color: "#fff", border: "none", padding: ".55rem 1.3rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", cursor: "pointer" }}>
-            + CREATE COUPON
-          </button>
-        )}
+        <div style={{ display: "flex", gap: ".5rem", alignItems: "center", flexWrap: "wrap" }}>
+          {selected.size > 0 && canDelete && (
+            <>
+              <span style={{ fontSize: ".75rem", color: "#888", fontWeight: 700 }}>{selected.size} selected</span>
+              <button onClick={() => setSelected(new Set())}
+                style={{ background: "transparent", border: "1px solid #333", color: "#666", padding: ".4rem .85rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".7rem", letterSpacing: 1, textTransform: "uppercase", cursor: "pointer" }}>CLEAR</button>
+              <button onClick={() => bulkDelete(false)} disabled={bulkDeleting}
+                style={{ background: "rgba(229,32,46,.12)", border: "1px solid #e5202e", color: "#e5202e", padding: ".4rem 1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".7rem", letterSpacing: 1, textTransform: "uppercase", cursor: bulkDeleting ? "not-allowed" : "pointer" }}>
+                {bulkDeleting ? "DELETING…" : `🗑 DELETE ${selected.size}`}
+              </button>
+            </>
+          )}
+          {canDelete && coupons.length > 0 && (
+            <button onClick={() => bulkDelete(true)} disabled={bulkDeleting}
+              style={{ background: "transparent", border: "1px solid #333", color: "#555", padding: ".4rem .85rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".7rem", letterSpacing: 1, textTransform: "uppercase", cursor: bulkDeleting ? "not-allowed" : "pointer" }}>
+              DELETE ALL
+            </button>
+          )}
+          {canDelete && coupons.length > 0 && (
+            <button onClick={() => selected.size === coupons.length ? setSelected(new Set()) : setSelected(new Set(coupons.map(c => c._id)))}
+              style={{ background: "transparent", border: "1px solid #1e1e1e", color: "#555", padding: ".4rem .85rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".7rem", letterSpacing: 1, textTransform: "uppercase", cursor: "pointer" }}>
+              {selected.size === coupons.length && coupons.length > 0 ? "✓ ALL" : "SELECT ALL"}
+            </button>
+          )}
+          {canCreate && (
+            <button onClick={openAdd} style={{ background: "#e5202e", color: "#fff", border: "none", padding: ".55rem 1.3rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".78rem", letterSpacing: 2, textTransform: "uppercase", cursor: "pointer" }}>
+              + CREATE COUPON
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stats */}
@@ -134,7 +180,8 @@ export default function AdminCouponsPage() {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
-                {["Code","Discount","Scope","Min Order","Valid For Order #","Uses","Expires","Status","Actions"].map(h => (
+                {canDelete && <th style={{ padding: ".85rem .75rem", borderBottom: "1px solid #1e1e1e", width: 36 }} />}
+              {["Code","Discount","Scope","Min Order","Valid For Order #","Uses","Expires","Status","Actions"].map(h => (
                   <th key={h} style={{ padding: ".85rem 1.2rem", textAlign: "left", fontSize: ".68rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#555", borderBottom: "1px solid #1e1e1e" }}>{h}</th>
                 ))}
               </tr>
@@ -146,6 +193,14 @@ export default function AdminCouponsPage() {
                 const expired = isExpired(c.expiresAt)
                 return (
                   <tr key={c._id} style={{ borderBottom: "1px solid #0f0f0f" }}>
+                    {canDelete && (
+                      <td style={{ padding: ".9rem .75rem" }}>
+                        <div onClick={() => toggleSelect(c._id)}
+                          style={{ width: 18, height: 18, background: selected.has(c._id) ? "#e5202e" : "transparent", border: `2px solid ${selected.has(c._id) ? "#e5202e" : "#333"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".65rem", color: "#fff", fontWeight: 900, cursor: "pointer" }}>
+                          {selected.has(c._id) ? "✓" : ""}
+                        </div>
+                      </td>
+                    )}
                     <td style={{ padding: ".9rem 1.2rem" }}>
                       <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: "1.1rem", letterSpacing: 2, color: c.active && !expired ? "#f5f5f5" : "#555" }}>{c.code}</div>
                       {c.description && <div style={{ color: "#555", fontSize: ".72rem", marginTop: ".2rem" }}>{c.description}</div>}

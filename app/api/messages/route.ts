@@ -51,6 +51,28 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// DELETE — admin bulk deletes messages: { ids: string[] } or { all: true }
+export async function DELETE(req: NextRequest) {
+  if (!getAdminSession(req)) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+  try {
+    await connectDB()
+    const body = await req.json()
+    let deleted = 0
+    if (body.all) {
+      const r = await Message.deleteMany({})
+      deleted = r.deletedCount
+    } else if (Array.isArray(body.ids) && body.ids.length) {
+      const r = await Message.deleteMany({ _id: { $in: body.ids } })
+      deleted = r.deletedCount
+    } else {
+      return NextResponse.json({ success: false, error: "Provide ids[] or all:true" }, { status: 400 })
+    }
+    return NextResponse.json({ success: true, deleted })
+  } catch (e) {
+    return NextResponse.json({ success: false, error: String(e) }, { status: 500 })
+  }
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 // GET — admin lists all messages, OR customer looks up their own by email

@@ -40,6 +40,8 @@ export default function AdminMessagesPage() {
   const [toast,    setToast]      = useState<{msg:string;ok:boolean}|null>(null)
   const [filterStatus, setFilterStatus] = useState("")
   const [filterType,   setFilterType]   = useState("")
+  const [selected, setSelected]   = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   useEffect(() => { load() }, [])
 
@@ -93,6 +95,29 @@ export default function AdminMessagesPage() {
     showToast("Deleted.")
   }
 
+  function toggleSelect(id: string) {
+    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+
+  async function bulkDelete(all: boolean) {
+    const count = all ? messages.length : selected.size
+    if (!count) return
+    if (!confirm(all ? `Delete ALL ${count} messages? This cannot be undone.` : `Delete ${count} selected message${count > 1 ? "s" : ""}?`)) return
+    setBulkDeleting(true)
+    try {
+      const body = all ? { all: true } : { ids: Array.from(selected) }
+      const r = await fetch("/api/messages", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      const j = await r.json()
+      if (j.success) {
+        showToast(`Deleted ${j.deleted} message${j.deleted !== 1 ? "s" : ""}.`)
+        setSelected(new Set())
+        setOpen(null)
+        load()
+      } else showToast(j.error || "Failed.", false)
+    } catch { showToast("Error.", false) }
+    setBulkDeleting(false)
+  }
+
   function showToast(msg: string, ok = true) { setToast({ msg, ok }); setTimeout(() => setToast(null), 3000) }
 
   const stats = {
@@ -117,7 +142,30 @@ export default function AdminMessagesPage() {
         <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "2rem", letterSpacing: 2 }}>
           MES<span style={{ color: "#e5202e" }}>SAGES</span>
         </h1>
-        <button onClick={load} style={{ background: "transparent", border: "1px solid #1e1e1e", color: "#666", padding: ".5rem 1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".72rem", letterSpacing: 1.5, textTransform: "uppercase", cursor: "pointer" }}>↻ REFRESH</button>
+        <div style={{ display: "flex", gap: ".5rem", alignItems: "center", flexWrap: "wrap" }}>
+          {selected.size > 0 && (
+            <>
+              <span style={{ fontSize: ".75rem", color: "#888", fontWeight: 700 }}>{selected.size} selected</span>
+              <button onClick={() => setSelected(new Set())}
+                style={{ background: "transparent", border: "1px solid #333", color: "#666", padding: ".4rem .85rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".7rem", letterSpacing: 1, textTransform: "uppercase", cursor: "pointer" }}>CLEAR</button>
+              <button onClick={() => bulkDelete(false)} disabled={bulkDeleting}
+                style={{ background: "rgba(229,32,46,.12)", border: "1px solid #e5202e", color: "#e5202e", padding: ".4rem 1rem", fontFamily: "'Barlow', sans-serif", fontWeight: 800, fontSize: ".7rem", letterSpacing: 1, textTransform: "uppercase", cursor: bulkDeleting ? "not-allowed" : "pointer" }}>
+                {bulkDeleting ? "DELETING…" : `🗑 DELETE ${selected.size}`}
+              </button>
+            </>
+          )}
+          {messages.length > 0 && (
+            <button onClick={() => bulkDelete(true)} disabled={bulkDeleting}
+              style={{ background: "transparent", border: "1px solid #333", color: "#555", padding: ".4rem .85rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".7rem", letterSpacing: 1, textTransform: "uppercase", cursor: bulkDeleting ? "not-allowed" : "pointer" }}>
+              DELETE ALL
+            </button>
+          )}
+          <button onClick={() => { setSelected(new Set(messages.map(m => m._id))); }}
+            style={{ background: "transparent", border: "1px solid #1e1e1e", color: "#555", padding: ".4rem .85rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".7rem", letterSpacing: 1, textTransform: "uppercase", cursor: "pointer" }}>
+            {selected.size === messages.length && messages.length > 0 ? "✓ ALL" : "SELECT ALL"}
+          </button>
+          <button onClick={load} style={{ background: "transparent", border: "1px solid #1e1e1e", color: "#666", padding: ".4rem .85rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".72rem", letterSpacing: 1.5, textTransform: "uppercase", cursor: "pointer" }}>↻ REFRESH</button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -162,17 +210,23 @@ export default function AdminMessagesPage() {
           {messages.map(msg => (
             <div key={msg._id}>
               {/* Row */}
-              <div onClick={() => { setOpen(open === msg._id ? null : msg._id); if (msg.status === "new") markRead(msg._id) }}
-                style={{ background: msg.status === "new" ? "#0f0f0f" : "#0d0d0d", padding: "1.1rem 1.5rem", cursor: "pointer", display: "grid", gridTemplateColumns: "auto 1fr auto", gap: "1rem", alignItems: "center" }}
+              <div style={{ background: msg.status === "new" ? "#0f0f0f" : "#0d0d0d", padding: "1.1rem 1.5rem", cursor: "pointer", display: "grid", gridTemplateColumns: "20px auto 1fr auto", gap: "1rem", alignItems: "center" }}
                 onMouseEnter={e => (e.currentTarget.style.background = "#111")}
                 onMouseLeave={e => (e.currentTarget.style.background = msg.status === "new" ? "#0f0f0f" : "#0d0d0d")}>
 
+                {/* Checkbox */}
+                <div onClick={e => { e.stopPropagation(); toggleSelect(msg._id) }}
+                  style={{ width: 18, height: 18, background: selected.has(msg._id) ? "#e5202e" : "rgba(0,0,0,.7)", border: `2px solid ${selected.has(msg._id) ? "#e5202e" : "#333"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".65rem", color: "#fff", fontWeight: 900, flexShrink: 0, cursor: "pointer" }}>
+                  {selected.has(msg._id) ? "✓" : ""}
+                </div>
+
                 {/* Type badge */}
-                <span style={{ display: "inline-block", padding: ".25rem .65rem", fontSize: ".6rem", fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", background: `${TYPE_COLOR[msg.type]}18`, color: TYPE_COLOR[msg.type], whiteSpace: "nowrap" }}>
+                <span onClick={() => { setOpen(open === msg._id ? null : msg._id); if (msg.status === "new") markRead(msg._id) }}
+                  style={{ display: "inline-block", padding: ".25rem .65rem", fontSize: ".6rem", fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", background: `${TYPE_COLOR[msg.type]}18`, color: TYPE_COLOR[msg.type], whiteSpace: "nowrap" }}>
                   {TYPE_LABEL[msg.type]}
                 </span>
 
-                <div>
+                <div onClick={() => { setOpen(open === msg._id ? null : msg._id); if (msg.status === "new") markRead(msg._id) }}>
                   <div style={{ display: "flex", alignItems: "center", gap: ".75rem", flexWrap: "wrap", marginBottom: ".25rem" }}>
                     <span style={{ fontWeight: 700, fontSize: ".88rem" }}>{msg.subject}</span>
                     {msg.status === "new" && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#e5202e", flexShrink: 0 }} />}
@@ -184,7 +238,8 @@ export default function AdminMessagesPage() {
                   </div>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: ".75rem", flexShrink: 0 }}>
+                <div onClick={() => { setOpen(open === msg._id ? null : msg._id); if (msg.status === "new") markRead(msg._id) }}
+                  style={{ display: "flex", alignItems: "center", gap: ".75rem", flexShrink: 0 }}>
                   <span style={{ display: "inline-block", padding: ".2rem .6rem", fontSize: ".6rem", fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", background: `${STATUS_COLOR[msg.status]}18`, color: STATUS_COLOR[msg.status] }}>
                     {msg.status.replace("_"," ")}
                   </span>

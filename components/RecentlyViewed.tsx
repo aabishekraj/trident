@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
+import { useCurrency } from "@/context/CurrencyContext"
 
 type Product = {
   _id: string; name: string; price: number; image?: string
@@ -15,6 +16,7 @@ function safeImg(url?: string) {
 }
 
 export default function RecentlyViewed({ exclude }: { exclude?: string }) {
+  const { fmt } = useCurrency()
   const [items, setItems] = useState<Product[]>([])
 
   useEffect(() => {
@@ -62,7 +64,7 @@ export default function RecentlyViewed({ exclude }: { exclude?: string }) {
               <div style={{ padding: ".75rem 1rem" }}>
                 <div style={{ fontSize: ".6rem", color: "#444", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: ".15rem" }}>{p.category}</div>
                 <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: ".88rem", marginBottom: ".2rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
-                <div style={{ fontWeight: 800, fontSize: ".85rem" }}>${fp.toFixed(2)}</div>
+                <div style={{ fontWeight: 800, fontSize: ".85rem" }}>{fmt(fp)}</div>
               </div>
             </Link>
           )
