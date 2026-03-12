@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     await CartSession.findOneAndUpdate(
       { customerEmail: email },
       { customerEmail: email, customerName: customerName || "", items: items || [], total: total || 0, reminderSent: false, checkedOutAt: undefined },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     )
     return NextResponse.json({ success: true })
   } catch {

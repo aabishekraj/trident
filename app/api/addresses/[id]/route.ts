@@ -17,7 +17,7 @@ export async function PUT(req: NextRequest, { params }: P) {
     const { id } = await params
     const body = await req.json()
     if (body.isDefault) await CustomerAddress.updateMany({ customerEmail: email }, { isDefault: false })
-    const addr = await CustomerAddress.findOneAndUpdate({ _id: id, customerEmail: email }, body, { new: true }).lean()
+    const addr = await CustomerAddress.findOneAndUpdate({ _id: id, customerEmail: email }, body, { returnDocument: "after" }).lean()
     if (!addr) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 })
     return NextResponse.json({ success: true, data: addr })
   } catch (e) {
