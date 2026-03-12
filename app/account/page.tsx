@@ -22,7 +22,7 @@ export default function AccountPage() {
     const c = JSON.parse(saved) as Customer
     setCustomer(c)
 
-    fetch(`/api/orders?email=${encodeURIComponent(c.email)}&limit=3`)
+    fetch(`/api/orders?email=${encodeURIComponent(c.email)}&limit=3`, { headers: { "x-customer-email": c.email } })
       .then(r => r.json())
       .then(j => setOrders(j.data || []))
       .catch(() => {})

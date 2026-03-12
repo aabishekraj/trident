@@ -68,7 +68,7 @@ function sanitizeProductBody(body: Record<string, unknown>) {
                      : [],
     image:         typeof body.image === "string"       ? body.image.slice(0, 1000)              : "",
     images:        Array.isArray(body.images)
-                     ? (body.images as unknown[]).map(u => String(u).slice(0, 1000)).filter(Boolean).slice(0, 10)
+                     ? (body.images as unknown[]).map(u => String(u).slice(0, 2048)).filter(Boolean).slice(0, 10)
                      : [],
     stockStatus:   VALID_STATUS.includes(String(body.stockStatus)) ? body.stockStatus as string : "active",
     stockQuantity: typeof body.stockQuantity === "number" ? Math.max(0, Math.floor(body.stockQuantity)) : 0,

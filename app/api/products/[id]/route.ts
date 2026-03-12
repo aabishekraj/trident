@@ -38,8 +38,8 @@ export async function PUT(req: NextRequest, { params }: P) {
     if (typeof raw.tag === "string")          allowed.tag          = raw.tag.trim().slice(0, 50)
     if (Array.isArray(raw.sizes))             allowed.sizes        = raw.sizes.map((s: unknown) => String(s).trim().slice(0, 20)).filter(Boolean).slice(0, 30)
     if (Array.isArray(raw.colors))            allowed.colors       = raw.colors.map((c: unknown) => String(c).trim().slice(0, 30)).filter(Boolean).slice(0, 20)
-    if (typeof raw.image === "string")        allowed.image        = raw.image.slice(0, 1000)
-    if (Array.isArray(raw.images))            allowed.images       = raw.images.map((u: unknown) => String(u).slice(0, 1000)).filter(Boolean).slice(0, 10)
+    if (typeof raw.image === "string")        allowed.image        = raw.image.slice(0, 2048)
+    if (Array.isArray(raw.images))            allowed.images       = raw.images.map((u: unknown) => String(u).slice(0, 2048)).filter(Boolean).slice(0, 10)
     if (VALID_STATUS.includes(String(raw.stockStatus))) allowed.stockStatus = raw.stockStatus
     if (typeof raw.stockQuantity === "number") allowed.stockQuantity = Math.max(0, Math.floor(raw.stockQuantity))
     if (typeof raw.active === "boolean")      allowed.active       = raw.active

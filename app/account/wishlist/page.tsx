@@ -12,7 +12,7 @@ type WishlistItem = {
 }
 
 function safeImg(url?: string) {
-  return url && (url.startsWith("http") || url.startsWith("data:"))
+  return url && (url.startsWith("http") || url.startsWith("data:") || url.startsWith("/"))
     ? url : "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80"
 }
 

@@ -27,8 +27,8 @@ const barlowCondensed = Barlow_Condensed({
 });
 
 export const metadata: Metadata = {
-  title: "TRIDENT — Premium Footwear",
-  description: "Performance meets obsession. Engineered for those who don't stop.",
+  title: "TRIDENT — Apparel, Footwear & Accessories",
+  description: "Performance meets obsession. Shop the latest apparel, footwear, and accessories for men, women, and kids.",
 };
 
 export default function RootLayout({

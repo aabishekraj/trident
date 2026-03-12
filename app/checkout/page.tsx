@@ -18,7 +18,7 @@ type SavedAddress = {
 }
 
 function safeImg(url?: string) {
-  return url && (url.startsWith("http") || url.startsWith("data:")) ? url : "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&q=60"
+  return url && (url.startsWith("http") || url.startsWith("data:") || url.startsWith("/")) ? url : "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&q=60"
 }
 function finalPrice(p: CartItem) {
   return p.couponDiscount ? +(p.price * (1 - p.couponDiscount / 100)).toFixed(2) : p.price

@@ -42,7 +42,7 @@ function Stars({ rating, size = 14 }: { rating: number; size?: number }) {
 }
 
 function safeImg(url?: string) {
-  return url && (url.startsWith("http") || url.startsWith("data:"))
+  return url && (url.startsWith("http") || url.startsWith("data:") || url.startsWith("/"))
     ? url : "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80"
 }
 

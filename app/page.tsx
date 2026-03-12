@@ -79,7 +79,7 @@ const MARQUEE = ["PERFORMANCE","★","INNOVATION","★","TRIDENT","★","JUST DO
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function safeImg(url?: string) {
-  return url && (url.startsWith("http") || url.startsWith("data:")) ? url : "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80"
+  return url && (url.startsWith("http") || url.startsWith("data:") || url.startsWith("/")) ? url : "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80"
 }
 function finalPrice(p: { price: number; couponDiscount?: number }) {
   return p.couponDiscount ? +(p.price * (1 - p.couponDiscount / 100)).toFixed(2) : p.price
@@ -550,6 +550,83 @@ export default function HomePage() {
           )}
         </div>
       </div>
+
+      {/* ══ SOCIAL PROOF STATS ════════════════════════════════════════════ */}
+      <section style={{ background: "#070707", borderTop: "1px solid #1e1e1e", padding: "5rem 2.5rem" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", textAlign: "center" }}>
+          <p style={{ fontSize: ".72rem", fontWeight: 800, letterSpacing: 5, textTransform: "uppercase", color: "#e5202e", marginBottom: ".75rem" }}>Trusted Worldwide</p>
+          <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(2.5rem,5vw,4rem)", letterSpacing: 2, lineHeight: .95, marginBottom: "3.5rem" }}>
+            NUMBERS THAT SPEAK
+          </h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: "2px", background: "#1e1e1e" }}>
+            {[
+              { num: "120K+",  label: "Happy Customers"    },
+              { num: "98%",    label: "Satisfaction Rate"  },
+              { num: "50K+",   label: "Orders Fulfilled"   },
+              { num: "4.8★",   label: "Average Rating"     },
+            ].map(({ num, label }) => (
+              <div key={label} style={{ background: "#0a0a0a", padding: "2.5rem 1.5rem" }}>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "3.5rem", letterSpacing: 2, color: "#e5202e", lineHeight: 1, marginBottom: ".4rem" }}>{num}</div>
+                <div style={{ fontSize: ".72rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#555" }}>{label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══ CUSTOMER TESTIMONIALS ═════════════════════════════════════════ */}
+      <section style={{ background: "#050505", padding: "6rem 2.5rem", borderTop: "1px solid #1e1e1e" }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: "1.5rem", marginBottom: "3.5rem" }}>
+            <div>
+              <p style={{ fontSize: ".72rem", fontWeight: 800, letterSpacing: 5, textTransform: "uppercase", color: "#e5202e", marginBottom: ".6rem" }}>Customer Reviews</p>
+              <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(2.5rem,5vw,4rem)", letterSpacing: 2, lineHeight: .95 }}>
+                REAL PEOPLE,<br /><span style={{ color: "#e5202e" }}>REAL RESULTS</span>
+              </h2>
+            </div>
+            <div style={{ display: "flex", gap: ".25rem" }}>
+              {[1,2,3,4,5].map(s => <span key={s} style={{ color: "#eab308", fontSize: "1.4rem" }}>★</span>)}
+              <span style={{ marginLeft: ".75rem", color: "#555", fontSize: ".85rem", alignSelf: "center", fontWeight: 700 }}>4.8 / 5 from 12,400+ reviews</span>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(340px,1fr))", gap: "2px", background: "#1e1e1e" }}>
+            {[
+              { name: "Arjun M.", location: "Mumbai", rating: 5, text: "The quality is insane for the price. I ordered the Air Flux Pro and wore them for a half-marathon — zero discomfort. My new go-to for all training sessions.", product: "Air Flux X — Pro", date: "Feb 2026", verified: true },
+              { name: "Priya S.", location: "Delhi", rating: 5, text: "I was skeptical about ordering online but the size guide was spot on. The hoodie is so soft and the stitching is flawless. Already ordered two more.", product: "Men — Hoodies", date: "Jan 2026", verified: true },
+              { name: "Rahul K.", location: "Bangalore", rating: 5, text: "Shipping was faster than expected and the packaging was premium. You can tell they care about the product. Absolutely worth every penny.", product: "Vertex Runner 2.0", date: "Mar 2026", verified: false },
+              { name: "Ananya T.", location: "Chennai", rating: 4, text: "Love the design and the colours. The fit is slightly slim so size up if you're unsure. Customer support was super helpful when I had a question.", product: "Women — Activewear", date: "Feb 2026", verified: true },
+              { name: "Dev P.", location: "Hyderabad", rating: 5, text: "Best shoes I've ever bought. Period. The sole grips perfectly on wet surfaces and the break-in time was literally zero. Game changer.", product: "Shadow Force Elite", date: "Jan 2026", verified: true },
+              { name: "Sneha R.", location: "Pune", rating: 5, text: "Ordered as a gift for my husband and he hasn't taken them off since. The return policy gave me confidence to try and I'm so glad I did.", product: "Strike Force V", date: "Mar 2026", verified: true },
+            ].map((r, i) => (
+              <div key={i} style={{ background: "#0a0a0a", padding: "2rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem" }}>
+                  <div style={{ display: "flex", gap: ".25rem" }}>
+                    {[1,2,3,4,5].map(s => <span key={s} style={{ color: s <= r.rating ? "#eab308" : "#222", fontSize: ".9rem" }}>★</span>)}
+                  </div>
+                  {r.verified && (
+                    <span style={{ fontSize: ".62rem", fontWeight: 800, letterSpacing: 1, background: "rgba(34,197,94,.1)", color: "#22c55e", padding: ".2rem .6rem" }}>✓ VERIFIED</span>
+                  )}
+                </div>
+                <p style={{ color: "#888", fontSize: ".85rem", lineHeight: 1.7, marginBottom: "1.25rem" }}>&ldquo;{r.text}&rdquo;</p>
+                <div style={{ borderTop: "1px solid #141414", paddingTop: ".85rem", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: ".82rem", color: "#f5f5f5" }}>{r.name}</div>
+                    <div style={{ color: "#444", fontSize: ".7rem", marginTop: ".15rem" }}>{r.location} · {r.date}</div>
+                  </div>
+                  <div style={{ fontSize: ".68rem", color: "#333", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", textAlign: "right" }}>{r.product}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ textAlign: "center", marginTop: "3rem" }}>
+            <Link href="/support" style={{ color: "#555", fontSize: ".78rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", textDecoration: "none", borderBottom: "1px solid #222", paddingBottom: ".2rem", transition: "color .2s" }}
+              onMouseEnter={e => (e.currentTarget.style.color = "#f5f5f5")}
+              onMouseLeave={e => (e.currentTarget.style.color = "#555")}>
+              Read More Reviews →
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {/* ══ BRAND VALUE STRIP ══════════════════════════════════════════════ */}
       <section style={{ background: "#050505", borderTop: "1px solid #1e1e1e", borderBottom: "1px solid #1e1e1e", padding: "3.5rem 2.5rem" }}>

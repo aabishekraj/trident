@@ -9,7 +9,7 @@ import { useCurrency } from "@/context/CurrencyContext"
 type StockStatus = "active" | "sold_out" | "coming_soon"
 type Product = {
   _id: string; name: string; description: string; price: number
-  category: string; tag: string; sizes: string[]; image: string
+  category: string; tag: string; sizes: string[]; image: string; images: string[]
   stockStatus: StockStatus; active: boolean; featured?: boolean
 }
 
@@ -29,7 +29,7 @@ const TAGS = ["", "NEW", "HOT", "SALE", "EXCLUSIVE", "LIMITED", "BESTSELLER"]
 const INP: React.CSSProperties = { width: "100%", background: "#0a0a0a", border: "1px solid #1e1e1e", color: "#f5f5f5", padding: ".7rem 1rem", fontFamily: "'Barlow', sans-serif", fontSize: ".88rem", outline: "none" }
 const LBL: React.CSSProperties = { display: "block", fontSize: ".68rem", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#666", marginBottom: ".4rem" }
 
-const EMPTY: Omit<Product, "_id"> = { name: "", description: "", price: 0, category: CATEGORIES[0], tag: "", sizes: [], image: "", stockStatus: "active", active: true, featured: false }
+const EMPTY: Omit<Product, "_id"> = { name: "", description: "", price: 0, category: CATEGORIES[0], tag: "", sizes: [], image: "", images: [], stockStatus: "active", active: true, featured: false }
 
 export default function AdminProductsPage() {
   const session  = useAdminSession()
@@ -52,8 +52,10 @@ export default function AdminProductsPage() {
   const [bulkUploading, setBulkUploading] = useState(false)
   const [selected, setSelected]     = useState<Set<string>>(new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
-  const fileRef    = useRef<HTMLInputElement>(null)
-  const csvFileRef = useRef<HTMLInputElement>(null)
+  const [uploadingImg, setUploadingImg] = useState(false)
+  const fileRef       = useRef<HTMLInputElement>(null)
+  const multiImgRef   = useRef<HTMLInputElement>(null)
+  const csvFileRef    = useRef<HTMLInputElement>(null)
 
   useEffect(() => { load() }, [])
 
@@ -68,7 +70,7 @@ export default function AdminProductsPage() {
   }
 
   function openAdd()  { setEditing(null); setForm(EMPTY); setModal(true) }
-  function openEdit(p: Product) { setEditing(p); setForm({ name: p.name, description: p.description, price: p.price, category: p.category, tag: p.tag || "", sizes: p.sizes || [], image: p.image || "", stockStatus: p.stockStatus || "active", active: p.active !== false, featured: p.featured || false }); setModal(true) }
+  function openEdit(p: Product) { setEditing(p); setForm({ name: p.name, description: p.description, price: p.price, category: p.category, tag: p.tag || "", sizes: p.sizes || [], image: p.image || "", images: p.images || [], stockStatus: p.stockStatus || "active", active: p.active !== false, featured: p.featured || false }); setModal(true) }
 
   function toggleSelect(id: string) {
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
@@ -102,10 +104,38 @@ export default function AdminProductsPage() {
     setForm(f => ({ ...f, sizes: f.sizes.includes(s) ? f.sizes.filter(x => x !== s) : [...f.sizes, s] }))
   }
 
+  async function uploadFile(file: File): Promise<string | null> {
+    const fd = new FormData()
+    fd.append("file", file)
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: fd })
+      const j = await res.json()
+      if (j.success) return j.path as string
+      showToast(j.error || "Upload failed.", false)
+      return null
+    } catch { showToast("Upload error.", false); return null }
+  }
+
   async function handleImageUpload(file: File) {
-    const reader = new FileReader()
-    reader.onload = e => setF("image", e.target?.result as string)
-    reader.readAsDataURL(file)
+    setUploadingImg(true)
+    const path = await uploadFile(file)
+    if (path) setF("image", path)
+    setUploadingImg(false)
+  }
+
+  async function handleAdditionalImages(files: FileList) {
+    setUploadingImg(true)
+    const paths: string[] = []
+    for (const file of Array.from(files)) {
+      const path = await uploadFile(file)
+      if (path) paths.push(path)
+    }
+    if (paths.length) setForm(f => ({ ...f, images: [...(f.images || []), ...paths] }))
+    setUploadingImg(false)
+  }
+
+  function removeAdditionalImage(idx: number) {
+    setForm(f => ({ ...f, images: (f.images || []).filter((_, i) => i !== idx) }))
   }
 
   // ── CSV Bulk Upload ─────────────────────────────────────────────────────────
@@ -130,7 +160,7 @@ export default function AdminProductsPage() {
         values.push(current.trim())
 
         const obj: Record<string, string> = {}
-        headers.forEach((h, i) => { obj[h] = (values[i] || "").replace(/^"|"$/g, "") })
+        headers.forEach((h, i) => { obj[h] = (values[i] || "").replace(/^"|"$/g, "").trim() })
         return obj
       }).filter(r => r.name && r.price)
 
@@ -158,8 +188,8 @@ export default function AdminProductsPage() {
   }
 
   function downloadCsvTemplate() {
-    const header = "name,price,description,category,tag,sizes,image,stockStatus"
-    const example = `"Air Flux Pro",189,"Premium running shoe","Men — Shoes","NEW","UK 8,UK 9,UK 10","https://example.com/image.jpg","active"`
+    const header = "name,price,description,category,tag,sizes,image,images,stockStatus"
+    const example = `"Air Flux Pro",189,"Premium running shoe","Men — Shoes","NEW","UK 8|UK 9|UK 10","https://example.com/main.jpg","https://example.com/alt1.jpg|https://example.com/alt2.jpg","active"`
     const blob = new Blob([header + "\n" + example], { type: "text/csv" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a"); a.href = url; a.download = "trident_products_template.csv"; a.click()
@@ -374,23 +404,66 @@ export default function AdminProductsPage() {
             </div>
             <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
 
-              {/* Image upload */}
+              {/* Main Image upload */}
               <div>
-                <label style={LBL}>Product Image</label>
-                <div onClick={() => fileRef.current?.click()}
-                  style={{ border: "2px dashed #1e1e1e", height: 140, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative", overflow: "hidden", background: "#0a0a0a" }}>
-                  {form.image ? (
+                <label style={LBL}>Main Product Image</label>
+                <div onClick={() => !uploadingImg && fileRef.current?.click()}
+                  style={{ border: "2px dashed #1e1e1e", height: 140, display: "flex", alignItems: "center", justifyContent: "center", cursor: uploadingImg ? "wait" : "pointer", position: "relative", overflow: "hidden", background: "#0a0a0a" }}>
+                  {uploadingImg ? (
+                    <div style={{ textAlign: "center", color: "#555" }}>
+                      <div style={{ fontSize: ".85rem", fontWeight: 700, letterSpacing: 1 }}>UPLOADING…</div>
+                    </div>
+                  ) : form.image ? (
                     <Image src={form.image} alt="preview" fill style={{ objectFit: "cover" }} unoptimized />
                   ) : (
                     <div style={{ textAlign: "center", color: "#444" }}>
                       <div style={{ fontSize: "2rem", marginBottom: ".4rem" }}>📷</div>
-                      <div style={{ fontSize: ".78rem", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Click to upload image</div>
+                      <div style={{ fontSize: ".78rem", fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Click to upload main image</div>
                       <div style={{ fontSize: ".7rem", color: "#333", marginTop: ".2rem" }}>JPG, PNG, WEBP — max 5MB</div>
                     </div>
                   )}
                 </div>
-                <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f) }} />
-                <input style={{ ...INP, marginTop: ".5rem", fontSize: ".8rem" }} placeholder="Or paste image URL…" value={form.image.startsWith("data:") ? "" : form.image} onChange={e => setF("image", e.target.value)} />
+                {form.image && (
+                  <button type="button" onClick={() => setF("image", "")}
+                    style={{ marginTop: ".3rem", background: "none", border: "none", color: "#e5202e", fontSize: ".72rem", fontWeight: 700, cursor: "pointer", letterSpacing: 1 }}>
+                    ✕ Remove main image
+                  </button>
+                )}
+                <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = "" }} />
+                <input style={{ ...INP, marginTop: ".5rem", fontSize: ".8rem" }} placeholder="Or paste image URL / path…" value={form.image} onChange={e => setF("image", e.target.value)} />
+              </div>
+
+              {/* Additional Images */}
+              <div>
+                <label style={LBL}>Additional Images (Gallery)</label>
+                {(form.images || []).length > 0 && (
+                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: ".75rem" }}>
+                    {(form.images || []).map((img, idx) => (
+                      <div key={idx} style={{ position: "relative", width: 80, height: 80, background: "#111", flexShrink: 0 }}>
+                        <Image src={img} alt={`img ${idx+1}`} fill style={{ objectFit: "cover" }} unoptimized />
+                        <button type="button" onClick={() => removeAdditionalImage(idx)}
+                          style={{ position: "absolute", top: 2, right: 2, background: "rgba(229,32,46,.9)", border: "none", color: "#fff", width: 18, height: 18, fontSize: ".65rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900 }}>
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button type="button" onClick={() => !uploadingImg && multiImgRef.current?.click()} disabled={uploadingImg}
+                  style={{ background: "transparent", border: "1px dashed #333", color: "#555", padding: ".55rem 1.2rem", fontFamily: "'Barlow', sans-serif", fontWeight: 700, fontSize: ".72rem", letterSpacing: 1, textTransform: "uppercase", cursor: uploadingImg ? "not-allowed" : "pointer" }}>
+                  {uploadingImg ? "UPLOADING…" : "+ ADD MORE IMAGES"}
+                </button>
+                <input ref={multiImgRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={e => { if (e.target.files?.length) handleAdditionalImages(e.target.files); e.target.value = "" }} />
+                <div style={{ marginTop: ".5rem" }}>
+                  <input style={{ ...INP, fontSize: ".8rem" }} placeholder="Or paste extra image URL and press Enter…"
+                    onKeyDown={e => {
+                      if (e.key === "Enter") {
+                        const val = (e.currentTarget.value || "").trim()
+                        if (val) { setForm(f => ({ ...f, images: [...(f.images || []), val] })); e.currentTarget.value = "" }
+                      }
+                    }} />
+                  <div style={{ fontSize: ".68rem", color: "#444", marginTop: ".3rem" }}>Press Enter to add each URL</div>
+                </div>
               </div>
 
               {/* Name & Price */}

@@ -33,9 +33,12 @@ export async function POST(req: NextRequest) {
         category:    String(r.category || "Unisex").trim(),
         tag:         String(r.tag || "").trim(),
         sizes:       typeof r.sizes === "string"
-          ? r.sizes.split(",").map((s: string) => s.trim()).filter(Boolean)
+          ? r.sizes.split(/[,|]/).map((s: string) => s.trim()).filter(Boolean)
           : Array.isArray(r.sizes) ? r.sizes : [],
         image:       String(r.image || "").trim(),
+        images:      typeof r.images === "string" && r.images.trim()
+          ? r.images.split("|").map((u: string) => u.trim()).filter(Boolean)
+          : [],
         stockStatus: ["active","sold_out","coming_soon"].includes(String(r.stockStatus))
           ? r.stockStatus
           : "active",
