@@ -12,8 +12,25 @@ export async function GET(req: NextRequest) {
   if (!email) return NextResponse.json({ success: false, error: "Auth required" }, { status: 401 })
   try {
     await connectDB()
-    const addrs = await CustomerAddress.find({ customerEmail: email }).sort({ isDefault: -1, createdAt: -1 }).lean()
-    return NextResponse.json({ success: true, data: addrs })
+    const addrs = await CustomerAddress.find({ customerEmail: email }).sort({ isDefault: -1, createdAt: 1 }).lean()
+
+    // Deduplicate existing DB records: keep the first occurrence per address+city+state+zip, delete the rest
+    const seen = new Set<string>()
+    const toDelete: string[] = []
+    for (const a of addrs) {
+      const key = `${String(a.address).toLowerCase().trim()}|${String(a.city).toLowerCase().trim()}|${String(a.state).toLowerCase().trim()}|${String(a.zip).trim()}`
+      if (seen.has(key)) {
+        toDelete.push(String(a._id))
+      } else {
+        seen.add(key)
+      }
+    }
+    if (toDelete.length) {
+      await CustomerAddress.deleteMany({ _id: { $in: toDelete } })
+    }
+
+    const unique = addrs.filter(a => !toDelete.includes(String(a._id)))
+    return NextResponse.json({ success: true, data: unique })
   } catch (e) {
     return NextResponse.json({ success: false, error: String(e) }, { status: 500 })
   }
