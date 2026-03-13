@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { connectDB } from "@/lib/mongodb"
 import Order from "@/models/Order"
 import SiteSettings from "@/models/SiteSettings"
-import { getAdminSession } from "@/lib/adminAuth"
+import { checkPermission } from "@/lib/adminAuth"
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   INR: "₹", USD: "$", EUR: "€", GBP: "£", SGD: "S$", AED: "AED ",
@@ -14,7 +14,8 @@ function escape(val: unknown): string {
 }
 
 export async function GET(req: NextRequest) {
-  if (!getAdminSession(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const denied = checkPermission(req, "orders", "view")
+  if (denied) return NextResponse.json({ error: denied.error }, { status: denied.status })
   try {
     await connectDB()
     const { searchParams } = new URL(req.url)

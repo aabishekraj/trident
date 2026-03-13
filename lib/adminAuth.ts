@@ -1,19 +1,16 @@
 // Server-only helper — reads the admin session cookie and checks permissions
 import { NextRequest } from "next/server"
 import { AdminRole, ROLE_PERMISSIONS } from "./roles"
+import { verifySession } from "./sessionSigner"
 
 export type AdminSession = { username: string; role: AdminRole; id?: string }
 
 export function getAdminSession(req: NextRequest): AdminSession | null {
   const cookie = req.cookies.get("trident_admin_session")?.value
   if (!cookie) return null
-  try {
-    const data = JSON.parse(Buffer.from(cookie, "base64").toString("utf8"))
-    if (!data?.username || !data?.role) return null
-    return data as AdminSession
-  } catch {
-    return null
-  }
+  const data = verifySession(cookie)
+  if (!data?.username || !data?.role) return null
+  return data as unknown as AdminSession
 }
 
 type PermError = { error: string; status: number }

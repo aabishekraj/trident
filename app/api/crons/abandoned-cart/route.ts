@@ -17,9 +17,9 @@ function getTransporter() {
 }
 
 export async function GET(req: NextRequest) {
-  // Simple secret guard
-  const secret = req.headers.get("x-cron-secret") || new URL(req.url).searchParams.get("secret")
-  if (secret !== process.env.CRON_SECRET) {
+  // Accept secret from header only (not query string — prevents logging in access logs)
+  const secret = req.headers.get("x-cron-secret")
+  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

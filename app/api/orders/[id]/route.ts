@@ -2,17 +2,38 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Order from "@/models/Order";
 import { sendStatusUpdate } from "@/lib/email";
+import { getAdminSession } from "@/lib/adminAuth";
 
 type Params = { params: Promise<{ id: string }> };
 
+function getCustomerEmail(req: NextRequest): string | null {
+  const h = req.headers.get("x-customer-email")
+  return h && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(h) ? h.toLowerCase().trim() : null
+}
+
 // ─── GET /api/orders/[id] ─────────────────────────────────────────────────────
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(req: NextRequest, { params }: Params) {
+  const adminSession = getAdminSession(req)
+  const customerEmail = getCustomerEmail(req)
+
+  // Must be either an admin or a signed-in customer
+  if (!adminSession && !customerEmail) {
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     await connectDB();
     const { id } = await params;
     const order = await Order.findById(id).lean();
     if (!order) {
       return NextResponse.json({ success: false, error: "Order not found" }, { status: 404 });
+    }
+    // Customers can only see their own orders
+    if (!adminSession) {
+      const o = order as { customer?: { email?: string } }
+      if (o.customer?.email?.toLowerCase() !== customerEmail) {
+        return NextResponse.json({ success: false, error: "Order not found" }, { status: 404 });
+      }
     }
     return NextResponse.json({ success: true, data: order });
   } catch (error) {

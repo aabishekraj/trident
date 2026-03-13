@@ -1,20 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
 import { connectDB } from "@/lib/mongodb"
 import AdminUser, { hashPassword } from "@/models/AdminUser"
+import { signSession } from "@/lib/sessionSigner"
 
-const ADMIN_USER = process.env.ADMIN_USERNAME ?? "admin"
-const ADMIN_PASS = process.env.ADMIN_PASSWORD ?? "trident2026"
+// Require env vars — fail loudly if missing so misconfiguration is caught early
+const ADMIN_USER = process.env.ADMIN_USERNAME
+const ADMIN_PASS = process.env.ADMIN_PASSWORD
 
 function setCookie(res: NextResponse, value: string) {
-  // Only use secure=true when the site is actually on HTTPS.
-  // NODE_ENV=production alone is not enough — HTTP deployments would have the
-  // browser silently reject Set-Cookie with secure=true, so the cookie is never saved.
   const isHttps = (process.env.NEXT_PUBLIC_SITE_URL ?? "").startsWith("https://")
   res.cookies.set("trident_admin_session", value, {
     httpOnly: true,
     secure: isHttps,
-    sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 7,
+    sameSite: "strict",
+    maxAge: 60 * 60 * 8, // 8 hours
     path: "/",
   })
 }
@@ -25,29 +24,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: "username and password required" }, { status: 400 })
   }
 
-  // 1. Env-var superadmin check first (instant, no DB needed)
-  if (username === ADMIN_USER && password === ADMIN_PASS) {
-    const sessionPayload = JSON.stringify({ username, role: "superadmin" })
-    const sessionToken   = Buffer.from(sessionPayload).toString("base64")
+  // 1. Env-var superadmin check first (only if env vars are configured)
+  if (ADMIN_USER && ADMIN_PASS && username === ADMIN_USER && password === ADMIN_PASS) {
+    const sessionToken = signSession({ username, role: "superadmin" })
     const res = NextResponse.json({ success: true, role: "superadmin", username })
     setCookie(res, sessionToken)
     return res
   }
 
-  // 2. Try DB admin users with a 4-second timeout to avoid hanging
+  // 2. Try DB admin users — fail securely if DB unavailable
   try {
     const timeout = new Promise<null>((_, reject) => setTimeout(() => reject(new Error("db_timeout")), 4000))
     await Promise.race([connectDB(), timeout])
     const dbUser = await AdminUser.findOne({ username, active: true })
     if (dbUser && await dbUser.checkPassword(password)) {
       await AdminUser.findByIdAndUpdate(dbUser._id, { lastLogin: new Date() })
-      const sessionPayload = JSON.stringify({ id: dbUser._id, username: dbUser.username, role: dbUser.role })
-      const sessionToken   = Buffer.from(sessionPayload).toString("base64")
+      const sessionToken = signSession({ id: String(dbUser._id), username: dbUser.username, role: dbUser.role })
       const res = NextResponse.json({ success: true, role: dbUser.role, username: dbUser.username })
       setCookie(res, sessionToken)
       return res
     }
-  } catch { /* DB unavailable or timeout — fall through */ }
+  } catch (err) {
+    const isTimeout = err instanceof Error && err.message === "db_timeout"
+    // Fail securely — never authenticate when DB is unavailable
+    console.error("[admin/login] DB error:", isTimeout ? "timeout" : err)
+  }
 
   return NextResponse.json({ success: false, error: "Invalid credentials" }, { status: 401 })
 }
@@ -62,26 +63,27 @@ export async function DELETE() {
 export async function GET(req: NextRequest) {
   const session = req.cookies.get("trident_admin_session")?.value
   if (!session) return NextResponse.json({ loggedIn: false })
-  try {
-    const data = JSON.parse(Buffer.from(session, "base64").toString("utf8"))
-    return NextResponse.json({ loggedIn: true, ...data })
-  } catch {
-    return NextResponse.json({ loggedIn: false })
-  }
+  const { verifySession } = await import("@/lib/sessionSigner")
+  const data = verifySession(session)
+  if (!data) return NextResponse.json({ loggedIn: false })
+  return NextResponse.json({ loggedIn: true, ...data })
 }
 
-// POST /api/admin/seed — auto-seed superadmin user on first run
+// PUT /api/admin/seed — auto-seed superadmin user on first run
 export async function PUT(req: NextRequest) {
   try {
     await connectDB()
-    // Check if any admin users exist
     const count = await AdminUser.countDocuments()
     if (count > 0) return NextResponse.json({ message: "Users already exist" })
 
     const body = await req.json().catch(() => ({}))
-    const username = body.username || ADMIN_USER
+    const username = body.username || ADMIN_USER || "admin"
     const password = body.password || ADMIN_PASS
     const email    = body.email    || "admin@trident.store"
+
+    if (!password) {
+      return NextResponse.json({ success: false, error: "ADMIN_PASSWORD env var not set" }, { status: 400 })
+    }
 
     await AdminUser.create({
       username,

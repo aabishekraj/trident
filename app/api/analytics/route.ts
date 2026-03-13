@@ -1,8 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Order from "@/models/Order";
+import { checkPermission } from "@/lib/adminAuth";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const denied = checkPermission(req, "analytics")
+  if (denied) return NextResponse.json({ success: false, error: denied.error }, { status: denied.status })
   try {
     await connectDB();
 
