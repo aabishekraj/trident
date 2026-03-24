@@ -65,21 +65,21 @@ const NAV_ITEMS = [
   },
 ]
 
-// ── Fallback products ─────────────────────────────────────────────────────────
+// ── Fallback products (shown only when DB is empty — no real images) ──────────
 const FALLBACK: Product[] = [
-  { _id:"f1", name:"Air Flux X — Pro",   price:189, tag:"NEW",       category:"Running",    stockStatus:"active",    image:"https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80", sizes:["S","M","L","XL"] },
-  { _id:"f2", name:"Vertex Runner 2.0",  price:149, tag:"HOT",       category:"Training",   stockStatus:"active",    image:"https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=600&q=80", sizes:["M","L","XL"] },
-  { _id:"f3", name:"Shadow Force Elite", price:229, tag:"",          category:"Basketball", stockStatus:"active",    image:"https://images.unsplash.com/photo-1600269452121-4f2416e55c28?w=600&q=80", sizes:["S","M","L"] },
-  { _id:"f4", name:"Pulse Drift Low",    price:119, tag:"SALE",      category:"Lifestyle",  stockStatus:"sold_out",  image:"https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=600&q=80", sizes:["XS","S","M"] },
-  { _id:"f5", name:"Strike Force V",     price:179, tag:"",          category:"Football",   stockStatus:"active",    image:"https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=600&q=80", sizes:["M","L","XL","XXL"] },
-  { _id:"f6", name:"Phantom Air Max",    price:259, tag:"EXCLUSIVE", category:"Running",    stockStatus:"coming_soon",image:"https://images.unsplash.com/photo-1584735175315-9d5df23be8b4?w=600&q=80", sizes:["S","M","L"] },
+  { _id:"f1", name:"Performance Runner",  price:189, tag:"NEW",       category:"Running",    stockStatus:"active",     sizes:["S","M","L","XL"] },
+  { _id:"f2", name:"Training Essential",  price:149, tag:"HOT",       category:"Training",   stockStatus:"active",     sizes:["M","L","XL"] },
+  { _id:"f3", name:"Court Classic",       price:229, tag:"",          category:"Basketball", stockStatus:"active",     sizes:["S","M","L"] },
+  { _id:"f4", name:"Lifestyle Low",       price:119, tag:"SALE",      category:"Lifestyle",  stockStatus:"sold_out",   sizes:["XS","S","M"] },
+  { _id:"f5", name:"Field Force Pro",     price:179, tag:"",          category:"Football",   stockStatus:"active",     sizes:["M","L","XL","XXL"] },
+  { _id:"f6", name:"Phantom Elite",       price:259, tag:"EXCLUSIVE", category:"Running",    stockStatus:"coming_soon",sizes:["S","M","L"] },
 ]
 
-const MARQUEE = ["PERFORMANCE","★","INNOVATION","★","TRIDENT","★","JUST DO IT","★","NEW ARRIVALS","★","SS 2026","★","FREE SHIPPING","★","PERFORMANCE","★","INNOVATION","★","TRIDENT","★","JUST DO IT","★","NEW ARRIVALS","★","SS 2026","★","FREE SHIPPING","★"]
+const MARQUEE = ["PERFORMANCE","★","INNOVATION","★","TRIDENT","★","WEAR THE EDGE","★","NEW ARRIVALS","★","SS 2026","★","FREE SHIPPING","★","PERFORMANCE","★","INNOVATION","★","TRIDENT","★","WEAR THE EDGE","★","NEW ARRIVALS","★","SS 2026","★","FREE SHIPPING","★"]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function safeImg(url?: string) {
-  return url && (url.startsWith("http") || url.startsWith("data:") || url.startsWith("/")) ? url : "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80"
+  return url && (url.startsWith("http") || url.startsWith("data:") || url.startsWith("/")) ? url : "/placeholder.svg"
 }
 function finalPrice(p: { price: number; couponDiscount?: number }) {
   return p.couponDiscount ? +(p.price * (1 - p.couponDiscount / 100)).toFixed(2) : p.price
@@ -314,10 +314,10 @@ export default function HomePage() {
         <div style={{ position: "relative", zIndex: 2, padding: "0 2.5rem", maxWidth: 860 }}>
           <p className="fade-up" style={{ fontSize: ".75rem", fontWeight: 800, letterSpacing: 5, textTransform: "uppercase", color: "#e5202e", marginBottom: "1rem" }}>New Season — SS 2026</p>
           <h1 className="fade-up delay-1" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(5rem,14vw,12rem)", lineHeight: .88, letterSpacing: -2, marginBottom: "1.5rem" }}>
-            JUST<br /><span style={{ color: "#e5202e" }}>DO</span><br />IT.
+            WEAR<br /><span style={{ color: "#e5202e" }}>THE</span><br />EDGE.
           </h1>
           <p className="fade-up delay-2" style={{ fontSize: "1.05rem", fontWeight: 300, color: "#777", maxWidth: 380, lineHeight: 1.65, marginBottom: "2.5rem" }}>
-            Performance meets obsession. Engineered for those who don&apos;t stop.
+            Performance meets obsession. Engineered for those who never stop.
           </p>
           <div className="fade-up delay-3" style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
             <button onClick={() => document.getElementById("featured")?.scrollIntoView({ behavior: "smooth" })}

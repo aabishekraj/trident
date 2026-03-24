@@ -18,7 +18,7 @@ type Product = {
 const GENDER_META: Record<string, { label: string; hero: string; sub: { label: string; slug: string }[] }> = {
   men: {
     label: "MEN",
-    hero: "https://images.unsplash.com/photo-1617137968427-85924c800a22?w=1600&q=80",
+    hero: "",
     sub: [
       { label: "T-Shirts",    slug: "tshirts"    },
       { label: "Shirts",      slug: "shirts"     },
@@ -33,7 +33,7 @@ const GENDER_META: Record<string, { label: string; hero: string; sub: { label: s
   },
   women: {
     label: "WOMEN",
-    hero: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1600&q=80",
+    hero: "",
     sub: [
       { label: "T-Shirts",    slug: "tshirts"    },
       { label: "Crop Tops",   slug: "crop-tops"  },
@@ -49,7 +49,7 @@ const GENDER_META: Record<string, { label: string; hero: string; sub: { label: s
   },
   kids: {
     label: "KIDS",
-    hero: "https://images.unsplash.com/photo-1622290291468-a28f7a7dc6a8?w=1600&q=80",
+    hero: "",
     sub: [
       { label: "Clothing",    slug: "clothing"   },
       { label: "Shoes",       slug: "shoes"      },
@@ -58,7 +58,7 @@ const GENDER_META: Record<string, { label: string; hero: string; sub: { label: s
   },
   unisex: {
     label: "UNISEX",
-    hero: "https://images.unsplash.com/photo-1529720317453-c8da503f2051?w=1600&q=80",
+    hero: "",
     sub: [],
   },
 }
@@ -66,7 +66,7 @@ const GENDER_META: Record<string, { label: string; hero: string; sub: { label: s
 function safeImg(url?: string) {
   return url && (url.startsWith("http") || url.startsWith("data:") || url.startsWith("/"))
     ? url
-    : "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=80"
+    : "/placeholder.svg"
 }
 
 function trackRecentlyViewed(p: Product) {
@@ -141,8 +141,9 @@ export default function GenderCollectionPage({ params }: { params: Promise<{ gen
       </div>
 
       {/* Hero */}
-      <div style={{ position: "relative", height: 380, overflow: "hidden" }}>
-        <Image src={meta.hero} alt={meta.label} fill style={{ objectFit: "cover", opacity: 0.35 }} unoptimized />
+      <div style={{ position: "relative", height: 380, overflow: "hidden", background: "#070707" }}>
+        <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 79px,rgba(255,255,255,.018) 80px),repeating-linear-gradient(90deg,transparent,transparent 79px,rgba(255,255,255,.018) 80px)" }} />
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 20% 60%, rgba(229,32,46,0.07) 0%, transparent 60%)" }} />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 40%, #0a0a0a 100%)" }} />
         <div style={{ position: "absolute", bottom: "2.5rem", left: "2.5rem" }}>
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "5rem", letterSpacing: 4, lineHeight: 1 }}>{meta.label}</div>

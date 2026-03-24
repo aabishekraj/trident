@@ -189,7 +189,7 @@ export default function AdminProductsPage() {
 
   function downloadCsvTemplate() {
     const header = "name,price,description,category,tag,sizes,image,images,stockStatus"
-    const example = `"Air Flux Pro",189,"Premium running shoe","Men — Shoes","NEW","UK 8|UK 9|UK 10","https://example.com/main.jpg","https://example.com/alt1.jpg|https://example.com/alt2.jpg","active"`
+    const example = `"Product Name",199,"Product description here","Men — Shoes","NEW","UK 8|UK 9|UK 10","https://your-cdn.com/image.jpg","https://your-cdn.com/alt1.jpg|https://your-cdn.com/alt2.jpg","active"`
     const blob = new Blob([header + "\n" + example], { type: "text/csv" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a"); a.href = url; a.download = "trident_products_template.csv"; a.click()

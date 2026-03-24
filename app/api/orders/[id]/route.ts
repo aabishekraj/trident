@@ -44,6 +44,9 @@ export async function GET(req: NextRequest, { params }: Params) {
 
 // ─── PUT /api/orders/[id] ─────────────────────────────────────────────────────
 export async function PUT(req: NextRequest, { params }: Params) {
+  if (!getAdminSession(req)) {
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+  }
   try {
     await connectDB();
     const { id } = await params;
@@ -91,7 +94,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
 }
 
 // ─── DELETE /api/orders/[id] ──────────────────────────────────────────────────
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
+  if (!getAdminSession(req)) {
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+  }
   try {
     await connectDB();
     const { id } = await params;
